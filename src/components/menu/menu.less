@@ -1,0 +1,151 @@
+.home {
+  height: 40px;
+  align-items: center;
+  padding: 10px 5px;
+  color: #2c3e50;
+  background: #fff;
+  box-sizing: content-box;
+  border-right: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 18px;
+  display: flex;
+
+  img {
+    height: 40px;
+    margin-left: 16px;
+  }
+
+  span {
+    margin-left: 10px;
+  }
+}
+
+.App {
+  .menu-container {
+    padding: 0px !important;
+  }
+
+  .page-header-content {
+    background-color: white;
+    height: 60px !important;
+  }
+}
+
+.collapseBtn {
+  color: #8c8c8c;
+  background: #f0f0f0;
+  width: 100%;
+
+  &:hover,
+  &:focus {
+    color: @primary-color;
+    background: #f0f0f0;
+  }
+}
+
+.ant-menu {
+  background-color: white;
+  color: rgba(0, 0, 0, .85);
+  width: 176px;
+  transition: none;
+  flex: 1;
+
+  &.left-menu-container {
+    height: calc(100% - 50px);
+    padding-top: 15px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &.ant-menu-inline-collapsed {
+    width: 48px;
+  }
+
+  &.ant-menu-inline-collapsed:not(.ant-layout-sider-children > ul) {
+    width: 48px;
+  }
+
+  .ant-menu-item.holder {
+    height: calc(100% - 300px);
+
+    &.ant-menu-item-selected {
+      background: #001529;
+    }
+  }
+
+  .ant-menu-submenu {
+    background-color: white;
+  }
+
+  .ant-menu-submenu,
+  .ant-menu-submenu-inline,
+  .ant-menu-item,
+  .ant-menu-submenu-title {
+    transition: none;
+    flex-shrink: 0;
+  }
+
+  .ant-menu-submenu-title {
+    padding-left: 24px;
+  }
+
+  .ant-menu-submenu .ant-menu-title-content {
+    font-size: 14px;
+  }
+
+  .avator {
+    line-height: @baseFontSizeMiddle;
+
+    img {
+      width: @baseFontSizeMiddle;
+      height: @baseFontSizeMiddle;
+      transform: scale(1.5);
+      margin-right: 10px;
+      vertical-align: text-bottom;
+      display: inline-block;
+      background: url('image/avatar1.png') 100% 100% / cover;
+    }
+  }
+
+  .ant-menu-item .ant-menu-item-icon,
+  .ant-menu-submenu-title .ant-menu-item-icon,
+  .ant-menu-item .anticon,
+  .ant-menu-submenu-title .anticon {
+    transition: none;
+  }
+
+  .ant-menu-inline .ant-menu-item::after {
+    border: none;
+  }
+
+  .menu-item-holder {
+    flex: 1;
+  }
+
+  .ant-tooltip-arrow-content {
+    background: #fff;
+  }
+
+  .ant-tooltip-inner {
+    color: @menu-item-color;
+    background: #fff;
+  }
+}
+
+.ant-menu-inline-collapsed .ant-menu-submenu-title,
+.ant-menu-inline-collapsed>.ant-menu-item {
+  padding: 0 calc(50% - 16px / 2) !important;
+}
+
+.menu-collapse-icon {
+  font-size: 14px;
+}
+
+// 英文模式下需要调整菜单宽度
+.menu-container-en {
+  .home {
+    width: 180px;
+  }
+}
