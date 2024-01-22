@@ -23,7 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { EditOutlined } from '@ant-design/icons';
 import { IRawTimeRange } from '@/components/TimeRangePicker';
 import { CommonStateContext } from '@/App';
-import { convertExpressionToQuery, replaceExpressionVars, getVaraiableSelected, setVaraiableSelected, filterOptionsByReg } from './constant';
+import { convertExpressionToQuery, replaceExpressionVars, getVaraiableSelected, setVaraiableSelected, filterOptionsByReg, stringToRegex } from './constant';
 import { IVariable } from './definition';
 import DisplayItem from './DisplayItem';
 import EditItems from './EditItems';
@@ -61,6 +61,44 @@ function index(props: IProps) {
       type: item.type || 'query',
     };
   });
+  const renderBtns = () => {
+    if (editable && !isPreview) {
+      if (_.isEmpty(data)) {
+        return (
+          <a
+            onClick={() => {
+              setEditing(true);
+              onOpenFire && onOpenFire();
+            }}
+          >
+            {t('var.btn')}
+          </a>
+        );
+      } else if (_.isEmpty(_.filter(data, (item) => !item.hide && item.type !== 'constant'))) {
+        return (
+          <a
+            onClick={() => {
+              setEditing(true);
+              onOpenFire && onOpenFire();
+            }}
+          >
+            {t('var.title.edit')}
+          </a>
+        );
+      } else {
+        return (
+          <EditOutlined
+            className='icon'
+            onClick={() => {
+              setEditing(true);
+              onOpenFire && onOpenFire();
+            }}
+          />
+        );
+      }
+    }
+    return null;
+  };
 
   useEffect(() => {
     if (value) {
@@ -73,14 +111,19 @@ function index(props: IProps) {
 
             let options = [];
             try {
-              options = await convertExpressionToQuery(definition, range, {
-                ...item,
-                datasource: {
-                  ...(item?.datasource || {}),
-                  value: result.length ? (replaceExpressionVars(item?.datasource?.value as any, result, result.length, id) as any) : item?.datasource?.value,
+              options = await convertExpressionToQuery(
+                definition,
+                range,
+                {
+                  ...item,
+                  datasource: {
+                    ...(item?.datasource || {}),
+                    value: result.length ? (replaceExpressionVars(item?.datasource?.value as any, result, result.length, id) as any) : item?.datasource?.value,
+                  },
                 },
-              });
-              options = _.sortBy(options);
+                id,
+              );
+              options = _.sortBy(_.uniq(options));
             } catch (error) {
               console.error(error);
             }
@@ -119,8 +162,15 @@ function index(props: IProps) {
             }
           } else if (item.type === 'datasource') {
             const options = item.definition ? (groupedDatasourceList[item.definition] as any) : [];
+            const regex = item.regex ? stringToRegex(item.regex) : null;
             result[idx] = item;
-            result[idx].options = options;
+            if (regex) {
+              result[idx].options = _.filter(options, (option) => {
+                return regex.test(option.name);
+              });
+            } else {
+              result[idx].options = options;
+            }
             const selected = getVaraiableSelected(item.name, item.type, id);
             if (selected === null) {
               if (item.defaultValue) {
@@ -180,26 +230,7 @@ function index(props: IProps) {
             />
           );
         })}
-        {editable && !isPreview ? (
-          <EditOutlined
-            className='icon'
-            onClick={() => {
-              setEditing(true);
-              onOpenFire && onOpenFire();
-            }}
-          />
-        ) : null}
-        {(data ? _.filter(data, (item) => item.type != 'constant')?.length === 0 : true) && editable && (
-          <div
-            className='add-variable-tips'
-            onClick={() => {
-              setEditing(true);
-              onOpenFire && onOpenFire();
-            }}
-          >
-            {t('var.btn')}
-          </div>
-        )}
+        {renderBtns()}
       </div>
       <EditItems
         visible={editing}

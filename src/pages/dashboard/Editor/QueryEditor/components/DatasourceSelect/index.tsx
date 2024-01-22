@@ -1,16 +1,19 @@
 import React, { useContext } from 'react';
 import { Form, Input, Select, Space } from 'antd';
+import Icon from '@ant-design/icons';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
-import { getAuthorizedDatasourceCates } from '@/components/AdvancedWrap';
+import { ProSvg } from '@/components/DatasourceSelect';
 import { CommonStateContext } from '@/App';
 
 const defaultDatasourceCate = 'prometheus';
 
 export default function index({ chartForm, variableConfig }) {
   const { t } = useTranslation('dashboard');
-  const { groupedDatasourceList } = useContext(CommonStateContext);
-  const cates = getAuthorizedDatasourceCates();
+  const { groupedDatasourceList, datasourceCateOptions } = useContext(CommonStateContext);
+  const cates = _.filter(datasourceCateOptions, (item) => {
+    return !!item.dashboard;
+  });
   const datasourceVars = _.filter(variableConfig, { type: 'datasource' });
   const getDefaultDatasourceValue = (datasourceCate) => {
     const finded = _.find(datasourceVars, { definition: datasourceCate });
@@ -30,45 +33,70 @@ export default function index({ chartForm, variableConfig }) {
             style={{ minWidth: 70 }}
             onChange={(val) => {
               // TODO: 调整数据源类型后需要重置配置
-              setTimeout(() => {
-                if (val === 'prometheus') {
-                  chartForm.setFieldsValue({
-                    targets: [
-                      {
-                        refId: 'A',
-                        expr: '',
+              // setTimeout(() => {
+              if (val === 'prometheus') {
+                chartForm.setFieldsValue({
+                  targets: [
+                    {
+                      refId: 'A',
+                      expr: '',
+                    },
+                  ],
+                  datasourceValue: getDefaultDatasourceValue('prometheus'),
+                });
+              } else if (val === 'elasticsearch' || val === 'opensearch') {
+                chartForm.setFieldsValue({
+                  targets: [
+                    {
+                      refId: 'A',
+                      query: {
+                        index: '',
+                        filters: '',
+                        values: [
+                          {
+                            func: 'count',
+                          },
+                        ],
+                        date_field: '@timestamp',
+                        interval: 1,
+                        interval_unit: 'min',
                       },
-                    ],
-                    datasourceValue: getDefaultDatasourceValue('prometheus'),
-                  });
-                } else if (val === 'elasticsearch') {
-                  chartForm.setFieldsValue({
-                    targets: [
-                      {
-                        refId: 'A',
-                        query: {
-                          index: '',
-                          filters: '',
-                          values: [
-                            {
-                              func: 'count',
-                            },
-                          ],
-                          date_field: '@timestamp',
-                          interval: 1,
-                          interval_unit: 'min',
-                        },
+                    },
+                  ],
+                  datasourceValue: getDefaultDatasourceValue(val),
+                });
+              } else if (val === 'zabbix') {
+                chartForm.setFieldsValue({
+                  targets: [
+                    {
+                      refId: 'A',
+                      query: {
+                        mode: 'timeseries',
+                        subMode: 'metrics',
                       },
-                    ],
-                    datasourceValue: getDefaultDatasourceValue('elasticsearch'),
-                  });
-                }
-              }, 500);
+                    },
+                  ],
+                  datasourceValue: undefined,
+                });
+              } else {
+                chartForm.setFieldsValue({
+                  targets: [
+                    {
+                      refId: 'A',
+                    },
+                  ],
+                  datasourceValue: undefined,
+                });
+              }
+              // }, 500);
             }}
           >
             {_.map(cates, (item) => (
               <Select.Option key={item.value} value={item.value}>
-                {item.label}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {item.graphPro ? <Icon component={ProSvg as any} style={{ color: '#6C53B1', fontSize: 14 }} /> : null}
+                  {item.label}
+                </div>
               </Select.Option>
             ))}
           </Select>
@@ -99,7 +127,7 @@ export default function index({ chartForm, variableConfig }) {
                 ]}
                 initialValue={getDefaultDatasourceValue(defaultDatasourceCate)}
               >
-                <Select allowClear placeholder={t('query.datasource_placeholder')} style={{ minWidth: 70 }} dropdownMatchSelectWidth={false}>
+                <Select allowClear placeholder={t('query.datasource_placeholder')} style={{ minWidth: 70 }} dropdownMatchSelectWidth={false} showSearch optionFilterProp='children'>
                   {_.map(datasourceVars, (item, idx) => {
                     return (
                       <Select.Option value={`\${${item.name}}`} key={`${item.name}_${idx}`}>

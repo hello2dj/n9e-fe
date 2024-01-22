@@ -26,15 +26,18 @@ import PageLayout from '@/components/pageLayout';
 import { getAlertEventsById, getHistoryEventsById } from '@/services/warning';
 import { priorityColor } from '@/utils/constant';
 import { deleteAlertEventsModal } from '.';
-import { parseValues } from '@/pages/alertRules/utils';
 import { CommonStateContext } from '@/App';
-import Preview from './Preview';
-import LogsDetail from './LogsDetail';
+// @ts-ignore
+import plusEventDetail from 'plus:/parcels/Event/eventDetail';
+// @ts-ignore
+import PlusPreview from 'plus:/parcels/Event/Preview';
+// @ts-ignore
+import PlusLogsDetail from 'plus:/parcels/Event/LogsDetail';
 import PrometheusDetail from './Detail/Prometheus';
-import ElasticsearchDetail from './Detail/Elasticsearch';
-import AliyunSLSDetail from './Detail/AliyunSLS';
 import Host from './Detail/Host';
+import TDengineDetail from '@/plugins/TDengine/Event';
 import './detail.less';
+import LokiDetail from './Detail/Loki';
 
 const { Paragraph } = Typography;
 const EventDetailPage: React.FC = () => {
@@ -53,43 +56,66 @@ const EventDetailPage: React.FC = () => {
   const isHistory = history.location.pathname.includes('alert-his-events');
   const [eventDetail, setEventDetail] = useState<any>();
   if (eventDetail) eventDetail.cate = eventDetail.cate || 'prometheus'; // TODO: 兼容历史的告警事件
-  const parsedEventDetail = parseValues(eventDetail);
   const descriptionInfo = [
     {
       label: t('detail.rule_name'),
       key: 'rule_name',
       render(content, { rule_id }) {
-        return (
-          <Link
-            to={{
-              pathname: `/alert-rules/edit/${rule_id}`,
-            }}
-            target='_blank'
-          >
-            {content}
-          </Link>
-        );
+        if (!_.includes(['firemap', 'northstar'], eventDetail?.rule_prod)) {
+          return (
+            <Link
+              to={{
+                pathname: `/alert-rules/edit/${rule_id}`,
+              }}
+              target='_blank'
+            >
+              {content}
+            </Link>
+          );
+        }
+        return content;
       },
     },
-    {
-      label: t('detail.group_name'),
-      key: 'group_name',
-      render(content, { group_id }) {
-        return (
-          <Button size='small' type='link' className='rule-link-btn' onClick={() => handleNavToWarningList(group_id)}>
-            {content}
-          </Button>
-        );
-      },
-    },
+    ...(!_.includes(['firemap', 'northstar'], eventDetail?.rule_prod)
+      ? [
+          {
+            label: t('detail.group_name'),
+            key: 'group_name',
+            render(content, { group_id }) {
+              return (
+                <Button size='small' type='link' className='rule-link-btn' onClick={() => handleNavToWarningList(group_id)}>
+                  {content}
+                </Button>
+              );
+            },
+          },
+        ]
+      : [
+          {
+            label: t('detail.detail_url'),
+            key: 'rule_config',
+            render(val) {
+              const detail_url = _.get(val, 'detail_url');
+              return (
+                <a href={detail_url} target='_blank'>
+                  {detail_url}
+                </a>
+              );
+            },
+          },
+        ]),
     { label: t('detail.rule_note'), key: 'rule_note' },
-    {
-      label: t('detail.datasource_id'),
-      key: 'datasource_id',
-      render(content) {
-        return _.find(datasourceList, (item) => item.id === content)?.name;
-      },
-    },
+    ...(!_.includes(['firemap', 'northstar'], eventDetail?.rule_prod)
+      ? [
+          {
+            label: t('detail.datasource_id'),
+            key: 'datasource_id',
+            render(content) {
+              return _.find(datasourceList, (item) => item.id === content)?.name;
+            },
+          },
+        ]
+      : [false]),
     {
       label: t('detail.severity'),
       key: 'severity',
@@ -110,14 +136,14 @@ const EventDetailPage: React.FC = () => {
       render(tags) {
         return tags
           ? tags.map((tag) => (
-            <Tag color='purple' key={tag}>
-              {tag}
-            </Tag>
-          ))
+              <Tag color='purple' key={tag}>
+                {tag}
+              </Tag>
+            ))
           : '';
       },
     },
-    { label: t('detail.target_note'), key: 'target_note' },
+    ...(!_.includes(['firemap', 'northstar'], eventDetail?.rule_prod) ? [{ label: t('detail.target_note'), key: 'target_note' }] : [false]),
     {
       label: t('detail.trigger_time'),
       key: 'trigger_time',
@@ -132,36 +158,7 @@ const EventDetailPage: React.FC = () => {
         return (
           <span>
             {val}
-            {eventDetail?.cate === 'elasticsearch' && (
-              <Button
-                size='small'
-                style={{ marginLeft: 16 }}
-                onClick={() => {
-                  LogsDetail.Elasticsearch({
-                    id: eventId,
-                    start: eventDetail.trigger_time - 2 * eventDetail.prom_eval_interval,
-                    end: eventDetail.trigger_time + eventDetail.prom_eval_interval,
-                  });
-                }}
-              >
-                日志详情
-              </Button>
-            )}
-            {eventDetail?.cate === 'aliyun-sls' && (
-              <Button
-                size='small'
-                style={{ marginLeft: 16 }}
-                onClick={() => {
-                  LogsDetail.AliyunSLS({
-                    id: eventId,
-                    start: eventDetail.trigger_time - 2 * eventDetail.prom_eval_interval,
-                    end: eventDetail.trigger_time + eventDetail.prom_eval_interval,
-                  });
-                }}
-              >
-                日志详情
-              </Button>
-            )}
+            <PlusLogsDetail data={eventDetail} />
           </span>
         );
       },
@@ -189,13 +186,19 @@ const EventDetailPage: React.FC = () => {
     },
     ...(eventDetail?.cate === 'prometheus'
       ? PrometheusDetail({
-        eventDetail,
-        history,
-      })
+          eventDetail,
+          history,
+        })
       : [false]),
-    ...(eventDetail?.cate === 'elasticsearch' ? ElasticsearchDetail() : [false]),
-    ...(eventDetail?.cate === 'aliyun-sls' ? AliyunSLSDetail() : [false]),
+    ...(eventDetail?.cate === 'loki'
+      ? LokiDetail({
+          eventDetail,
+          history,
+        })
+      : [false]),
     ...(eventDetail?.cate === 'host' ? Host(t, commonState) : [false]),
+    ...(eventDetail?.cate === 'tdengine' ? TDengineDetail(t) : [false]),
+    ...(plusEventDetail(eventDetail?.cate, t) || []),
     {
       label: t('detail.prom_eval_interval'),
       key: 'prom_eval_interval',
@@ -230,24 +233,13 @@ const EventDetailPage: React.FC = () => {
       render(callbacks) {
         return callbacks
           ? callbacks.map((callback) => (
-            <Tag>
-              <Paragraph copyable style={{ margin: 0 }}>
-                {callback}
-              </Paragraph>
-            </Tag>
-          ))
+              <Tag>
+                <Paragraph copyable style={{ margin: 0 }}>
+                  {callback}
+                </Paragraph>
+              </Tag>
+            ))
           : '';
-      },
-    },
-    {
-      label: t('detail.runbook_url'),
-      key: 'runbook_url',
-      render(url) {
-        return (
-          <a href={url} target='_balank'>
-            {url}
-          </a>
-        );
       },
     },
   ];
@@ -272,7 +264,7 @@ const EventDetailPage: React.FC = () => {
   }
 
   useEffect(() => {
-    const requestPromise = isHistory ? getHistoryEventsById(busiId, eventId) : getAlertEventsById(busiId, eventId);
+    const requestPromise = isHistory ? getHistoryEventsById(eventId) : getAlertEventsById(eventId);
     requestPromise.then((res) => {
       setEventDetail(res.dat);
     });
@@ -293,7 +285,7 @@ const EventDetailPage: React.FC = () => {
                     type='primary'
                     onClick={() => {
                       history.push({
-                        hash: '/alert-mutes/add',
+                        pathname: '/alert-mutes/add',
                         search: queryString.stringify({
                           busiGroup: eventDetail.group_id,
                           prod: eventDetail.rule_prod,
@@ -332,37 +324,17 @@ const EventDetailPage: React.FC = () => {
           >
             {eventDetail && (
               <div>
-                {parsedEventDetail.rule_algo || parsedEventDetail.cate === 'elasticsearch' || parsedEventDetail.cate === 'aliyun-sls' ? (
-                  <Preview
-                    data={parsedEventDetail}
-                    triggerTime={eventDetail.trigger_time}
-                    onClick={(event, datetime) => {
-                      if (parsedEventDetail.cate === 'elasticsearch') {
-                        LogsDetail.Elasticsearch({
-                          id: eventId,
-                          start: moment(datetime).unix() - 2 * eventDetail.prom_eval_interval,
-                          end: moment(datetime).unix() + eventDetail.prom_eval_interval,
-                        });
-                      } else if (parsedEventDetail.cate === 'aliyun-sls') {
-                        LogsDetail.AliyunSLS({
-                          id: eventId,
-                          start: moment(datetime).unix() - 2 * eventDetail.prom_eval_interval,
-                          end: moment(datetime).unix() + eventDetail.prom_eval_interval,
-                        });
-                      }
-                    }}
-                  />
-                ) : null}
+                <PlusPreview data={eventDetail} />
                 {descriptionInfo
                   .filter((item: any) => {
                     if (!item) return false;
-                    return parsedEventDetail.is_recovered ? true : item.key !== 'recover_time';
+                    return eventDetail.is_recovered ? true : item.key !== 'recover_time';
                   })
                   .map(({ label, key, render }: any, i) => {
                     return (
                       <div className='desc-row' key={key + i}>
                         <div className='desc-label'>{label}：</div>
-                        <div className='desc-content'>{render ? render(parsedEventDetail[key], parsedEventDetail) : parsedEventDetail[key]}</div>
+                        <div className='desc-content'>{render ? render(eventDetail[key], eventDetail) : eventDetail[key]}</div>
                       </div>
                     );
                   })}

@@ -35,10 +35,11 @@ interface HostItem {
 const index = (props: any) => {
   const taskResultCls = 'job-task-result';
   const history = useHistory();
-  const { curBusiId } = useContext(CommonStateContext);
+  const { businessGroup } = useContext(CommonStateContext);
+  const curBusiId = businessGroup.id!;
   const { params } = props.match;
   const taskId = params.id;
-  const { t, i18n } = useTranslation();
+  const { t, i18n } = useTranslation('common');
   const [activeStatus, setActiveStatus] = useState<string[]>();
   const [data, setData] = useState({} as any);
   const [hosts, setHosts] = useState<HostItem[]>([]);

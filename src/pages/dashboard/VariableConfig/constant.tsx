@@ -25,7 +25,7 @@ import { normalizeESQueryRequestBody } from './utils';
 
 // https://grafana.com/docs/grafana/latest/datasources/prometheus/#query-variable 根据文档解析表达式
 // 每一个promtheus接口都接受start和end参数来限制返回值
-export const convertExpressionToQuery = (expression: string, range: IRawTimeRange, item: IVariable) => {
+export const convertExpressionToQuery = (expression: string, range: IRawTimeRange, item: IVariable, dashboardId) => {
   const { type, datasource, config } = item;
   const parsedRange = parseRange(range);
   const start = moment(parsedRange.start).unix();
@@ -59,7 +59,8 @@ export const convertExpressionToQuery = (expression: string, range: IRawTimeRang
       const metric = expression.substring('metrics('.length, expression.length - 1);
       return getMetric({ start, end }, datasourceValue).then((res) => res.data.filter((item) => item.includes(metric)));
     } else if (expression.startsWith('query_result(')) {
-      const promql = expression.substring('query_result('.length, expression.length - 1);
+      let promql = expression.substring('query_result('.length, expression.length - 1);
+      promql = replaceFieldWithVariable(promql, dashboardId, getOptionsList({}, range));
       return getQueryResult({ query: promql, start, end }, datasourceValue).then((res) =>
         _.map(res?.data?.result, ({ metric, value }) => {
           const metricName = metric['__name__'];
@@ -216,13 +217,17 @@ export const replaceExpressionVarsSpecifyRule = (
             newExpression = replaceAllPolyfill(newExpression, placeholder, selected as string);
           } else if (selected === null) {
             // 未选择或填写变量值时替换为传入的value
-            newExpression = replaceAllPolyfill(newExpression, placeholder, value ? value : '');
+            newExpression = replaceAllPolyfill(newExpression, placeholder, value ? (_.isArray(value) ? _.join(value, '|') : value) : '');
             if (type === 'datasource') {
               newExpression = !_.isNaN(_.toNumber(newExpression)) ? (_.toNumber(newExpression) as any) : newExpression;
             }
           } else if (typeof selected === 'number') {
-            // number 目前只用于数据源变量的数据源ID
-            newExpression = selected as any;
+            if (type === 'datasource' && newExpression === `\${${name}}`) {
+              // number 目前只用于数据源变量的数据源ID
+              newExpression = selected as any;
+            } else {
+              newExpression = replaceAllPolyfill(newExpression, placeholder, selected as any);
+            }
           }
         }
       }
@@ -285,18 +290,24 @@ export function stringToRegex(str: string): RegExp | false {
   }
 }
 
+export const getDefaultStepByStartAndEnd = (start: number, end: number) => {
+  return Math.max(Math.floor((end - start) / 240), 1);
+};
+
 export function replaceFieldWithVariable(value: string, dashboardId?: string, variableConfig?: IVariable[]) {
   if (!dashboardId || !variableConfig) {
     return value;
   }
   return replaceExpressionVars(value, variableConfig, variableConfig.length, dashboardId);
 }
+
 export const getOptionsList = (
   dashboardMeta: {
-    dashboardId: string;
-    variableConfigWithOptions: any;
+    dashboardId?: string;
+    variableConfigWithOptions?: any;
   },
   time: IRawTimeRange,
+  step?: number,
 ) => {
   const rangeTime = parseRange(time);
   const from = moment(rangeTime.start).valueOf();
@@ -305,6 +316,7 @@ export const getOptionsList = (
   const to = moment(rangeTime.end).valueOf();
   const toDateSeconds = moment(rangeTime.end).unix();
   const toDateISO = moment(rangeTime.end).toISOString();
+  const interval = step ? step : getDefaultStepByStartAndEnd(fromDateSeconds, toDateSeconds);
   return [
     ...(dashboardMeta.variableConfigWithOptions ? dashboardMeta.variableConfigWithOptions : []),
     { name: '__from', value: from },
@@ -315,6 +327,12 @@ export const getOptionsList = (
     { name: '__to_date_seconds', value: toDateSeconds },
     { name: '__to_date_iso', value: toDateISO },
     { name: '__to_date', value: toDateISO },
+    { name: '__interval', value: `${interval}s` },
+    { name: '__interval_ms', value: `${interval * 1000}ms` },
+    { name: '__rate_interval', value: `${interval * 4}s` },
+    { name: '__range', value: `${toDateSeconds - fromDateSeconds}s` },
+    { name: '__range_s', value: `${toDateSeconds - fromDateSeconds}s` },
+    { name: '__range_ms', value: `${(toDateSeconds - fromDateSeconds) * 1000}ms` },
   ];
 };
 

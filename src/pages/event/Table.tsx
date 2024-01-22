@@ -16,16 +16,20 @@
  */
 import React, { useState, useContext } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Tag, Button, Table } from 'antd';
-import { useHistory } from 'react-router-dom';
+import { Tag, Button, Table, Tooltip } from 'antd';
+import { useHistory, Link } from 'react-router-dom';
 import moment from 'moment';
 import _ from 'lodash';
 import queryString from 'query-string';
 import { useAntdTable } from 'ahooks';
 import { CommonStateContext } from '@/App';
+import { parseRange } from '@/components/TimeRangePicker';
 import { getEvents } from './services';
 import { deleteAlertEventsModal } from './index';
 import { SeverityColor } from './index';
+
+// @ts-ignore
+import AckBtn from 'plus:/parcels/Event/Acknowledge/AckBtn';
 
 interface IProps {
   filterObj: any;
@@ -33,24 +37,33 @@ interface IProps {
   filter: any;
   setFilter: (filter: any) => void;
   refreshFlag: string;
+  selectedRowKeys: number[];
+  setSelectedRowKeys: (selectedRowKeys: number[]) => void;
 }
 
 export default function TableCpt(props: IProps) {
-  const { filterObj, filter, setFilter, header } = props;
+  const { filterObj, filter, setFilter, header, selectedRowKeys, setSelectedRowKeys } = props;
   const history = useHistory();
   const { t } = useTranslation('AlertCurEvents');
   const { groupedDatasourceList } = useContext(CommonStateContext);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
   const [refreshFlag, setRefreshFlag] = useState<string>(_.uniqueId('refresh_'));
   const columns = [
     {
-      title: t('common:datasource.type'),
-      dataIndex: 'cate',
+      title: t('prod'),
+      dataIndex: 'rule_prod',
+      width: 100,
+      render: (value) => {
+        return t(`AlertHisEvents:rule_prod.${value}`);
+      },
     },
     {
       title: t('common:datasource.id'),
       dataIndex: 'datasource_id',
+      width: 100,
       render: (value, record) => {
+        if (value === 0) {
+          return '$all';
+        }
         return _.find(groupedDatasourceList?.[record.cate], { id: value })?.name || '-';
       },
     },
@@ -58,33 +71,40 @@ export default function TableCpt(props: IProps) {
       title: t('rule_name'),
       dataIndex: 'rule_name',
       render(title, { id, tags }) {
-        const content =
-          tags &&
-          tags.map((item) => (
-            <Tag
-              color='purple'
-              key={item}
-              onClick={() => {
-                if (!filter.queryContent.includes(item)) {
-                  setFilter({
-                    ...filter,
-                    queryContent: filter.queryContent ? `${filter.queryContent.trim()} ${item}` : item,
-                  });
-                }
-              }}
-            >
-              {item}
-            </Tag>
-          ));
         return (
           <>
             <div>
-              <a style={{ padding: 0 }} onClick={() => history.push(`/alert-cur-events/${id}`)}>
-                {title}
-              </a>
+              <Link to={`/alert-cur-events/${id}`}>{title}</Link>
             </div>
             <div>
-              <span className='event-tags'>{content}</span>
+              {_.map(tags, (item) => {
+                return (
+                  <Tooltip key={item} title={item}>
+                    <Tag
+                      color='purple'
+                      style={{ maxWidth: '100%' }}
+                      onClick={() => {
+                        if (!filter.queryContent.includes(item)) {
+                          setFilter({
+                            ...filter,
+                            queryContent: filter.queryContent ? `${filter.queryContent.trim()} ${item}` : item,
+                          });
+                        }
+                      }}
+                    >
+                      <div
+                        style={{
+                          maxWidth: 'max-content',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {item}
+                      </div>
+                    </Tag>
+                  </Tooltip>
+                );
+              })}
             </div>
           </>
         );
@@ -101,16 +121,22 @@ export default function TableCpt(props: IProps) {
     {
       title: t('common:table.operations'),
       dataIndex: 'operate',
-      width: 120,
+      width: 200,
       render(value, record) {
         return (
           <>
+            <AckBtn
+              data={record}
+              onOk={() => {
+                setRefreshFlag(_.uniqueId('refresh_'));
+              }}
+            />
             <Button
               size='small'
               type='link'
               onClick={() => {
                 history.push({
-                  hash: '/alert-mutes/add',
+                  pathname: '/alert-mutes/add',
                   search: queryString.stringify({
                     busiGroup: record.group_id,
                     prod: record.rule_prod,
@@ -145,12 +171,36 @@ export default function TableCpt(props: IProps) {
       },
     },
   ];
+  if (import.meta.env.VITE_IS_PRO === 'true') {
+    columns.splice(4, 0, {
+      title: t('status'),
+      dataIndex: 'status',
+      width: 100,
+      render: (value) => {
+        return t(`status_${value}`) as string;
+      },
+    });
+    columns.splice(5, 0, {
+      title: t('claimant'),
+      dataIndex: 'claimant',
+      width: 100,
+      render: (value) => {
+        return value;
+      },
+    });
+  }
   const fetchData = ({ current, pageSize }) => {
-    return getEvents({
+    const params: any = {
       p: current,
       limit: pageSize,
-      ...filterObj,
-    }).then((res) => {
+      ..._.omit(filterObj, 'range'),
+    };
+    if (filterObj.range) {
+      const parsedRange = parseRange(filterObj.range);
+      params.stime = moment(parsedRange.start).unix();
+      params.etime = moment(parsedRange.end).unix();
+    }
+    return getEvents(params).then((res) => {
       return {
         total: res.dat.total,
         list: res.dat.list,
@@ -169,11 +219,18 @@ export default function TableCpt(props: IProps) {
         <div style={{ display: 'flex' }}>{header}</div>
         <Table
           size='small'
-          rowKey='id'
+          tableLayout='fixed'
+          rowKey={(record) => record.id}
           columns={columns}
           {...tableProps}
           rowClassName={(record: { severity: number; is_recovered: number }) => {
             return SeverityColor[record.is_recovered ? 3 : record.severity - 1] + '-left-border';
+          }}
+          rowSelection={{
+            selectedRowKeys: selectedRowKeys,
+            onChange(selectedRowKeys: number[]) {
+              setSelectedRowKeys(selectedRowKeys);
+            },
           }}
           pagination={{
             ...tableProps.pagination,

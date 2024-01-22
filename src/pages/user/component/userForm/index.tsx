@@ -21,6 +21,7 @@ import { UserAndPasswordFormProps, Contacts, ContactsItem, User } from '@/store/
 import { MinusCircleOutlined, PlusCircleOutlined, CaretDownOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import _ from 'lodash';
+import { Link } from 'react-router-dom';
 
 const { Option } = Select;
 const UserForm = React.forwardRef<ReactNode, UserAndPasswordFormProps>((props, ref) => {
@@ -31,6 +32,7 @@ const UserForm = React.forwardRef<ReactNode, UserAndPasswordFormProps>((props, r
   const [loading, setLoading] = useState<boolean>(true);
   const [contactsList, setContactsList] = useState<ContactsItem[]>([]);
   const [roleList, setRoleList] = useState<{ name: string; note: string }[]>([]);
+  const contacts = Form.useWatch('contacts', form);
 
   useImperativeHandle(ref, () => ({
     form: form,
@@ -54,21 +56,14 @@ const UserForm = React.forwardRef<ReactNode, UserAndPasswordFormProps>((props, r
 
   const getUserInfoDetail = (id: string) => {
     getUserInfo(id).then((data: User) => {
-      let contacts: Array<Contacts> = [];
-
-      if (data.contacts) {
-        Object.keys(data.contacts).forEach((item: string) => {
-          let val: Contacts = {
-            key: item,
-            value: data.contacts[item],
-          };
-          contacts.push(val);
-        });
-      }
-
       setInitialValues(
         Object.assign({}, data, {
-          contacts,
+          contacts: _.map(data.contacts, (value, key) => {
+            return {
+              key,
+              value,
+            };
+          }),
         }),
       );
       setLoading(false);
@@ -158,7 +153,16 @@ const UserForm = React.forwardRef<ReactNode, UserAndPasswordFormProps>((props, r
       <Form.Item label={t('account:profile.phone')} name='phone'>
         <Input />
       </Form.Item>
-      <Form.Item label={t('account:profile.moreContact')}>
+      <Form.Item
+        label={
+          <Space>
+            {t('account:profile.contact')}
+            <Link to='/help/notification-settings?tab=contacts' target='_blank'>
+              {t('account:profile.contactLinkToSetting')}
+            </Link>
+          </Space>
+        }
+      >
         <Form.List name='contacts'>
           {(fields, { add, remove }) => (
             <>
@@ -183,9 +187,9 @@ const UserForm = React.forwardRef<ReactNode, UserAndPasswordFormProps>((props, r
                       },
                     ]}
                   >
-                    <Select suffixIcon={<CaretDownOutlined />} placeholder={t('account:profile.moreContactPlaceholder')}>
+                    <Select suffixIcon={<CaretDownOutlined />} placeholder={t('account:profile.contactPlaceholder')}>
                       {_.map(contactsList, (item, index) => (
-                        <Option value={item.key} key={index}>
+                        <Option value={item.key} key={index} disabled={_.includes(_.map(contacts, 'key'), item.key)}>
                           {item.label}
                         </Option>
                       ))}
@@ -194,7 +198,7 @@ const UserForm = React.forwardRef<ReactNode, UserAndPasswordFormProps>((props, r
                   <Form.Item
                     {...restField}
                     style={{
-                      width: '170px',
+                      width: '240px',
                     }}
                     name={[name, 'value']}
                     rules={[

@@ -3,6 +3,8 @@ import { extend } from 'umi-request';
 import { notification } from 'antd';
 import _ from 'lodash';
 import { UpdateAccessToken } from '@/services/login';
+import { N9E_PATHNAME, AccessTokenKey } from '@/utils/constant';
+import i18next from 'i18next';
 
 /** 异常处理程序，所有的error都被这里处理，页面无法感知具体error */
 const errorHandler = (error: Error): Response => {
@@ -53,8 +55,8 @@ request.interceptors.request.use((url, options) => {
   let headers = {
     ...options.headers,
   };
-  headers['Authorization'] = `Bearer ${localStorage.getItem('access_token') || ''}`;
-  headers['X-Language'] = localStorage.getItem('language') === 'en_US' ? 'en' : 'zh';
+  headers['Authorization'] = `Bearer ${localStorage.getItem(AccessTokenKey) || ''}`;
+  headers['X-Language'] = i18next.language;
   return {
     url,
     options: { ...options, headers },
@@ -79,7 +81,13 @@ request.interceptors.response.use(
           // proxy/elasticsearch 返回的数据结构是 { ...data }
           // proxy/jeager 返回的数据结构是 { data: [], errors: [] }
           if (
-            _.some(['/api/v1', '/api/v2', '/api/n9e/datasource', '/api/n9e/proxy'], (item) => {
+            _.some([`/api/${N9E_PATHNAME}/proxy`, '/probe/v1'], (item) => {
+              return url.includes(item);
+            })
+          ) {
+            return data;
+          } else if (
+            _.some(['/api/v1', '/api/v2', '/api/n9e/datasource'], (item) => {
               return url.includes(item);
             })
           ) {
@@ -109,7 +117,7 @@ request.interceptors.response.use(
             }
           }
         });
-    } else if (status === 401) {
+    } else if (status === 401 && !_.includes(response.url, '/api/n9e-plus/proxy') && !_.includes(response.url, '/api/n9e/proxy')) {
       if (response.url.indexOf('/api/n9e/auth/refresh') > 0) {
         location.href = `/login${location.pathname != '/' ? '?redirect=' + location.pathname + location.search : ''}`;
       } else {
@@ -120,13 +128,27 @@ request.interceptors.response.use(
                 location.href = `/login${location.pathname != '/' ? '?redirect=' + location.pathname + location.search : ''}`;
               } else {
                 const { access_token, refresh_token } = res.dat;
-                localStorage.setItem('access_token', access_token);
+                localStorage.setItem(AccessTokenKey, access_token);
                 localStorage.setItem('refresh_token', refresh_token);
                 location.href = `${location.pathname}${location.search}`;
               }
             })
           : (location.href = `/login${location.pathname != '/' ? '?redirect=' + location.pathname + location.search : ''}`);
       }
+    } else if (
+      status === 403 &&
+      (response.url.includes('/api/v1') || response.url.includes('/api/v2')) &&
+      // 排除掉 proxy 的接口
+      !_.includes(response.url, '/api/n9e-plus/proxy') &&
+      !_.includes(response.url, '/api/n9e/proxy')
+    ) {
+      return response
+        .clone()
+        .json()
+        .then((data) => {
+          location.href = '/403';
+          if (data.error && data.error.message) throw new Error(data.error.message);
+        });
     } else {
       return response
         .clone()

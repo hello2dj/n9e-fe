@@ -14,11 +14,14 @@
  * limitations under the License.
  *
  */
-import React from 'react';
-import { Switch, Route, useLocation, Redirect } from 'react-router-dom';
+import React, { useEffect, useContext } from 'react';
+import { Switch, Route, useLocation, Redirect, useHistory } from 'react-router-dom';
 import querystring from 'query-string';
-import NotFound from '@/pages/notFound';
+import _ from 'lodash';
+import { getMenuPerm } from '@/services/common';
+import { CommonStateContext } from '@/App';
 import Page403 from '@/pages/notFound/Page403';
+import NotFound from '@/pages/notFound';
 import Login from '@/pages/login';
 import Overview from '@/pages/login/overview';
 import LoginCallback from '@/pages/loginCallback';
@@ -33,6 +36,7 @@ import Groups from '@/pages/user/groups';
 import Users from '@/pages/user/users';
 import Business from '@/pages/user/business';
 import { Metric as MetricExplore, Log as LogExplore } from '@/pages/explorer';
+import IndexPatterns, { Fields as IndexPatternFields } from '@/pages/log/IndexPatterns';
 import ObjectExplore from '@/pages/monitor/object';
 import Shield, { Add as AddShield, Edit as ShieldEdit } from '@/pages/warning/shield';
 import Subscribe, { Add as SubscribeAdd, Edit as SubscribeEdit } from '@/pages/warning/subscribe';
@@ -62,8 +66,15 @@ import NotificationTpls from '@/pages/help/NotificationTpls';
 import NotificationSettings from '@/pages/help/NotificationSettings';
 import MigrateDashboards from '@/pages/help/migrate';
 import IBEX from '@/pages/help/NotificationSettings/IBEX';
-import Collects, { Add as CollectAdd, Edit as CollectEdit } from '@/pages/collects';
+import VariableConfigs from '@/pages/variableConfigs';
+import SiteSettings from '@/pages/siteSettings';
 import { dynamicPackages, Entry } from '@/utils';
+// @ts-ignore
+import { Jobs as StrategyBrain } from 'plus:/datasource/anomaly';
+// @ts-ignore
+import plusLoader from 'plus:/utils/loader';
+// @ts-ignore
+import useIsPlus from 'plus:/components/useIsPlus';
 
 const Packages = dynamicPackages();
 let lazyRoutes = Packages.reduce((result: any, module: Entry) => {
@@ -84,14 +95,35 @@ function RouteWithSubRoutes(route) {
 
 export default function Content() {
   const location = useLocation();
+  const history = useHistory();
+  const isPlus = useIsPlus();
+  const { profile, siteInfo } = useContext(CommonStateContext);
   // 仪表盘在全屏和暗黑主题下需要定义个 dark 样式名
   let themeClassName = '';
   if (location.pathname.indexOf('/dashboard') === 0) {
     const query = querystring.parse(location.search);
-    if (query?.viewMode === 'fullscreen' && query?.themeMode === 'dark') {
+    if (query?.themeMode === 'dark') {
       themeClassName = 'theme-dark';
     }
   }
+
+  useEffect(() => {
+    if (profile?.roles?.length > 0 && location.pathname !== '/') {
+      if (profile?.roles.indexOf('Admin') === -1) {
+        getMenuPerm().then((res) => {
+          const { dat } = res;
+          // 如果没有权限则重定向到 403 页面
+          if (
+            _.every(dat, (item) => {
+              return location.pathname.indexOf(item) === -1;
+            })
+          ) {
+            history.push('/403');
+          }
+        });
+      }
+    }
+  }, []);
 
   return (
     <div className={`content ${themeClassName}`}>
@@ -104,6 +136,8 @@ export default function Content() {
         <Route path='/callback/oauth' component={LoginCallbackOAuth} exact />
         <Route path='/metric/explorer' component={MetricExplore} exact />
         <Route path='/log/explorer' component={LogExplore} exact />
+        <Route path='/log/index-patterns' component={IndexPatterns} exact />
+        <Route path='/log/index-patterns/:id' component={IndexPatternFields} exact />
         <Route path='/object/explorer' component={ObjectExplore} exact />
         <Route path='/busi-groups' component={Business} />
         <Route path='/users' component={Users} />
@@ -123,20 +157,19 @@ export default function Content() {
         <Route exact path='/alert-rules' component={AlertRules} />
         <Route exact path='/alert-rules-built-in' component={AlertRulesBuiltin} />
         <Route exact path='/alert-rules-built-in/detail' component={AlertRulesBuiltinDetail} />
-        {/* <Route exact path='/alert-rules/brain/:id' component={StrategyBrain} /> */}
+        <Route exact path='/alert-rules/brain/:id' component={StrategyBrain} />
         <Route exact path='/alert-mutes' component={Shield} />
         <Route exact path='/alert-mutes/add/:from?' component={AddShield} />
         <Route exact path='/alert-mutes/edit/:id' component={ShieldEdit} />
         <Route exact path='/alert-subscribes' component={Subscribe} />
         <Route exact path='/alert-subscribes/add' component={SubscribeAdd} />
         <Route exact path='/alert-subscribes/edit/:id' component={SubscribeEdit} />
-        <Route exact path='/collects' component={Collects} />
-        <Route exact path='/collects/add/:bgid' component={CollectAdd} />
-        <Route exact path='/collects/edit/:id' component={CollectEdit} />
 
-        <Route exact path='/recording-rules/:id?' component={RecordingRule} />
-        <Route exact path='/recording-rules/add/:group_id' component={RecordingRuleAdd} />
-        <Route exact path='/recording-rules/edit/:id' component={RecordingRuleEdit} />
+        {!isPlus && [
+          <Route key='recording-rules' exact path='/recording-rules/:id?' component={RecordingRule} />,
+          <Route key='recording-rules-add' exact path='/recording-rules/add/:group_id' component={RecordingRuleAdd} />,
+          <Route key='recording-rules-edit' exact path='/recording-rules/edit/:id' component={RecordingRuleEdit} />,
+        ]}
 
         <Route exact path='/alert-cur-events' component={Event} />
         <Route exact path='/alert-his-events' component={historyEvents} />
@@ -165,17 +198,23 @@ export default function Content() {
         <Route exact path='/help/notification-tpls' component={NotificationTpls} />
         <Route exact path='/help/notification-settings' component={NotificationSettings} />
         <Route exact path='/help/migrate' component={MigrateDashboards} />
+        <Route exact path='/help/variable-configs' component={VariableConfigs} />
 
         <Route exact path='/trace/explorer' component={TraceExplorer} />
         <Route exact path='/trace/dependencies' component={TraceDependencies} />
 
         <Route exact path='/permissions' component={Permissions} />
 
+        <Route exact path='/site-settings' component={SiteSettings} />
+
         {lazyRoutes.map((route, i) => (
           <RouteWithSubRoutes key={i} {...route} />
         ))}
+        {_.map(plusLoader.routes, (route, i) => (
+          <RouteWithSubRoutes key={i} {...route} />
+        ))}
         <Route path='/' exact>
-          <Redirect to='/metric/explorer' />
+          <Redirect to={siteInfo?.home_page_url || '/metric/explorer'} />
         </Route>
         <Route path='/403' component={Page403} />
         <Route path='/404' component={NotFound} />

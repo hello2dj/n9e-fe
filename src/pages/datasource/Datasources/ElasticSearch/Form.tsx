@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Form, Select, InputNumber, Tooltip, Row, Col } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
+import AdvancedWrap from '@/components/AdvancedWrap';
 import Name from '../../components/items/Name';
 import HTTP from '../../components/items/HTTP';
 import BasicAuth from '../../components/items/BasicAuth';
@@ -10,13 +11,23 @@ import SkipTLSVerify from '../../components/items/SkipTLSVerify';
 import Headers from '../../components/items/Headers';
 import Description from '../../components/items/Description';
 import Footer from '../../components/items/Footer';
+import Cluster from '../../components/items/Cluster';
 
 export default function FormCpt({ data, onFinish, submitLoading }: any) {
   const { t } = useTranslation('datasourceManage');
   const [form] = Form.useForm();
+  const clusterRef = useRef<any>();
 
   return (
-    <Form form={form} layout='vertical' onFinish={onFinish} initialValues={data} className='settings-source-form'>
+    <Form
+      form={form}
+      layout='vertical'
+      onFinish={(values) => {
+        onFinish(values, clusterRef.current);
+      }}
+      initialValues={data}
+      className='settings-source-form'
+    >
       <Name />
       <HTTP />
       <BasicAuth />
@@ -59,6 +70,9 @@ export default function FormCpt({ data, onFinish, submitLoading }: any) {
           </Form.Item>
         </Col>
       </Row>
+      <AdvancedWrap var='VITE_IS_PRO,VITE_IS_ENT'>
+        <Cluster form={form} clusterRef={clusterRef} />
+      </AdvancedWrap>
       <Description />
       <div className='mt16'>
         <Footer id={data?.id} submitLoading={submitLoading} />

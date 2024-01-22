@@ -17,7 +17,7 @@
 import React, { useEffect, useRef } from 'react';
 import classNames from 'classnames';
 import _ from 'lodash';
-import { EditorView, highlightSpecialChars, keymap, ViewUpdate, placeholder } from '@codemirror/view';
+import { EditorView, highlightSpecialChars, keymap, ViewUpdate, placeholder as placeholderFunc } from '@codemirror/view';
 import { EditorState, Prec } from '@codemirror/state';
 import { indentOnInput } from '@codemirror/language';
 import { history, historyKeymap } from '@codemirror/history';
@@ -30,6 +30,7 @@ import { lintKeymap } from '@codemirror/lint';
 import { autocompletion, completionKeymap } from '@codemirror/autocomplete';
 import { PromQLExtension } from 'codemirror-promql';
 import { baseTheme, promqlHighlighter } from './CMTheme';
+import { N9E_PATHNAME, AccessTokenKey } from '@/utils/constant';
 
 export { PromQLInputWithBuilder } from './PromQLInputWithBuilder';
 
@@ -46,11 +47,12 @@ export interface CMExpressionInputProps {
   completeEnabled?: boolean;
   trigger?: ('onBlur' | 'onEnter')[]; // 触发 onChang 的事件
   datasourceValue?: number;
+  placeholder?: string | false;
 }
 
 const ExpressionInput = (
   {
-    url = '/api/n9e/proxy',
+    url = `/api/${N9E_PATHNAME}/proxy`,
     headers,
     value,
     onChange,
@@ -60,6 +62,7 @@ const ExpressionInput = (
     completeEnabled = true,
     trigger = ['onBlur', 'onEnter'],
     datasourceValue,
+    placeholder = '输入 promql 进行查询，Shift+Enter 进行换行',
   }: CMExpressionInputProps,
   ref,
 ) => {
@@ -68,7 +71,7 @@ const ExpressionInput = (
   const executeQueryCallback = useRef(executeQuery);
   const realValue = useRef<string | undefined>(value || '');
   const defaultHeaders = {
-    Authorization: `Bearer ${localStorage.getItem('access_token') || ''}`,
+    Authorization: `Bearer ${localStorage.getItem(AccessTokenKey) || ''}`,
   };
 
   useEffect(() => {
@@ -79,25 +82,25 @@ const ExpressionInput = (
       .setComplete(
         completeEnabled
           ? {
-            remote: {
-              url: `${url}/${datasourceValue}`,
-              fetchFn: (resource, options = {}) => {
-                const params = options.body?.toString();
-                const search = params ? `?${params}` : '';
-                return fetch(resource + search, {
-                  method: 'Get',
-                  headers: new Headers(
-                    headers
-                      ? {
-                        ...defaultHeaders,
-                        ...headers,
-                      }
-                      : defaultHeaders,
-                  ),
-                });
+              remote: {
+                url: datasourceValue ? `${url}/${datasourceValue}` : url,
+                fetchFn: (resource, options = {}) => {
+                  const params = options.body?.toString();
+                  const search = params ? `?${params}` : '';
+                  return fetch(resource + search, {
+                    method: 'Get',
+                    headers: new Headers(
+                      headers
+                        ? {
+                            ...defaultHeaders,
+                            ...headers,
+                          }
+                        : defaultHeaders,
+                    ),
+                  });
+                },
               },
-            },
-          }
+            }
           : undefined,
       );
 
@@ -124,7 +127,7 @@ const ExpressionInput = (
           promqlHighlighter,
           EditorView.lineWrapping,
           keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, ...commentKeymap, ...completionKeymap, ...lintKeymap]),
-          placeholder('输入 promql 进行查询，Shift+Enter 进行换行'),
+          placeholderFunc(placeholder === false ? '' : placeholder),
           promqlExtension.asExtension(),
           EditorView.editable.of(!readonly),
           keymap.of([
@@ -183,7 +186,7 @@ const ExpressionInput = (
 
       // view.focus();
     }
-  }, [onChange, JSON.stringify(headers), completeEnabled]);
+  }, [onChange, JSON.stringify(headers), completeEnabled, datasourceValue]);
 
   useEffect(() => {
     if (realValue.current !== value) {

@@ -14,16 +14,18 @@
  * limitations under the License.
  *
  */
-import React, { useEffect, useState, useImperativeHandle, ReactNode, useCallback } from 'react';
+import React, { useEffect, useState, useImperativeHandle, ReactNode, useCallback, useContext } from 'react';
 import { Form, Input, Select, Switch, Tag, Space, Button } from 'antd';
 import { MinusCircleOutlined, PlusOutlined, CaretDownOutlined } from '@ant-design/icons';
 import { getBusinessTeamInfo, getTeamInfoList } from '@/services/manage';
 import { TeamProps, Team, ActionType } from '@/store/manageInterface';
 import { useTranslation, Trans } from 'react-i18next';
 import { debounce } from 'lodash';
+import { CommonStateContext } from '@/App';
 
 const { Option } = Select;
 const TeamForm = React.forwardRef<ReactNode, TeamProps>((props, ref) => {
+  const { siteInfo } = useContext(CommonStateContext);
   const { t } = useTranslation('user');
   const { businessId, action } = props;
   const [form] = Form.useForm();
@@ -87,6 +89,18 @@ const TeamForm = React.forwardRef<ReactNode, TeamProps>((props, ref) => {
                 required: true,
               },
             ]}
+            tooltip={
+              siteInfo?.businessGroupDisplayMode === 'list' ? undefined : (
+                <Trans
+                  ns='user'
+                  i18nKey='business.name_tip'
+                  components={{ 1: <br /> }}
+                  values={{
+                    separator: siteInfo?.businessGroupSeparator || '-',
+                  }}
+                />
+              )
+            }
           >
             <Input />
           </Form.Item>
@@ -121,7 +135,7 @@ const TeamForm = React.forwardRef<ReactNode, TeamProps>((props, ref) => {
                           }}
                         >
                           <span>
-                            尽量用英文，不能与其他应用标识重复，系统会自动生成 <Tag color='purple'>busigroup={form.getFieldValue('label_value')}</Tag> 的标签
+                            尽量用英文，不能与其他业务组标识重复，系统会自动生成 <Tag color='purple'>busigroup={form.getFieldValue('label_value')}</Tag> 的标签
                           </span>
                         </Trans>
                       ),
@@ -148,7 +162,7 @@ const TeamForm = React.forwardRef<ReactNode, TeamProps>((props, ref) => {
               <>
                 {fields.map(({ key, name, fieldKey, ...restField }) => (
                   <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align='baseline'>
-                    <Form.Item style={{ width: 450 }} {...restField} name={[name, 'user_group_id']} rules={[{ required: true, message: t('应用用户组不能为空！') }]}>
+                    <Form.Item style={{ width: 450 }} {...restField} name={[name, 'user_group_id']} rules={[{ required: true, message: t('business.user_group_msg') }]}>
                       <Select
                         suffixIcon={<CaretDownOutlined />}
                         style={{ width: '100%' }}

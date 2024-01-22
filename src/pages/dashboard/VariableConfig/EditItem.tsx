@@ -20,11 +20,11 @@ import { QuestionCircleOutlined } from '@ant-design/icons';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 import { IRawTimeRange } from '@/components/TimeRangePicker';
-import IndexSelect from '@/pages/alertRules/Form/Rule/Rule/Log/ElasticsearchSettings/IndexSelect';
+import IndexSelect from '@/pages/dashboard/Editor/QueryEditor/Elasticsearch/IndexSelect';
 import ClusterSelect from '@/pages/dashboard/Editor/QueryEditor/components/ClusterSelect';
 import { CommonStateContext } from '@/App';
 import { IVariable } from './definition';
-import { convertExpressionToQuery, replaceExpressionVars, filterOptionsByReg, setVaraiableSelected } from './constant';
+import { convertExpressionToQuery, replaceExpressionVars, filterOptionsByReg, setVaraiableSelected, stringToRegex } from './constant';
 
 interface IProps {
   id: string;
@@ -75,22 +75,7 @@ function EditItem(props: IProps) {
   const { t } = useTranslation('dashboard');
   const { data, vars, range, id, index, datasourceVars, onOk, onCancel } = props;
   const [form] = Form.useForm();
-  const { groupedDatasourceList } = useContext(CommonStateContext);
-  // TODO: 不太清楚这里的逻辑是干嘛的，后面找时间看下
-  const handleBlur = (val?: string) => {
-    const reg = data.reg;
-    const expression = val || data.definition;
-    if ((!reg || new RegExp('^/(.*?)/(g?i?m?y?)$').test(reg)) && expression && data) {
-      const formData = form.getFieldsValue();
-      var newExpression = replaceExpressionVars(expression, formData, index, id);
-      convertExpressionToQuery(newExpression, range, data).then((res) => {
-        const regFilterRes = filterOptionsByReg(res, reg, formData, index, id);
-        if (regFilterRes.length > 0) {
-          setVaraiableSelected({ name: formData.var[index].name, value: regFilterRes[0], id });
-        }
-      });
-    }
-  };
+  const { groupedDatasourceList, datasourceCateOptions } = useContext(CommonStateContext);
 
   return (
     <Form layout='vertical' autoComplete='off' preserve={false} form={form} initialValues={data}>
@@ -232,40 +217,41 @@ function EditItem(props: IProps) {
                               JSON.parse(definition);
                               return Promise.resolve();
                             } catch (e) {
-                              return Promise.reject('变量定义必须是合法的JSON');
+                              return Promise.reject(t('var.definition_msg2'));
                             }
                           }
                           return Promise.resolve();
                         } else {
-                          return Promise.reject(new Error('请输入变量定义'));
+                          return Promise.reject(new Error(t('var.definition_msg1')));
                         }
                       },
                     }),
                   ]}
+                  required
                 >
-                  <Input onBlur={(e) => handleBlur(e.target.value)} />
+                  <Input />
                 </Form.Item>
                 <Form.Item label={t('var.reg')} name='reg' tooltip={t('var.reg_tip')} rules={[{ pattern: new RegExp('^/(.*?)/(g?i?m?y?)$'), message: 'invalid regex' }]}>
-                  <Input placeholder='/*.hna/' onBlur={() => handleBlur()} />
+                  <Input placeholder='/*.hna/' />
                 </Form.Item>
               </>
             );
           } else if (type === 'textbox') {
             return (
               <Form.Item label={t('var.textbox.defaultValue')} name='defaultValue'>
-                <Input onBlur={() => handleBlur()} />
+                <Input />
               </Form.Item>
             );
           } else if (type === 'custom') {
             return (
               <Form.Item label={t('var.custom.definition')} name='definition' rules={[{ required: true }]}>
-                <Input onBlur={() => handleBlur()} placeholder='1,10' />
+                <Input placeholder='1,10' />
               </Form.Item>
             );
           } else if (type === 'constant') {
             return (
               <Form.Item label={t('var.constant.definition')} name='definition' tooltip={t('var.constant.defaultValue_tip')} rules={[{ required: true }]}>
-                <Input onBlur={() => handleBlur()} />
+                <Input />
               </Form.Item>
             );
           } else if (type === 'datasource') {
@@ -273,24 +259,37 @@ function EditItem(props: IProps) {
               <>
                 <Form.Item label={t('var.datasource.definition')} name='definition' rules={[{ required: true }]}>
                   <Select>
-                    {_.map(allOptions, (item) => (
+                    {_.map(datasourceCateOptions, (item) => (
                       <Select.Option key={item.value} value={item.value}>
                         {item.label}
                       </Select.Option>
                     ))}
                   </Select>
                 </Form.Item>
-                <Form.Item shouldUpdate={(prevValues, curValues) => prevValues?.definition !== curValues?.definition} noStyle>
+                <Form.Item label={t('var.datasource.regex')} name='regex' tooltip={t('var.datasource.regex_tip')}>
+                  <Input />
+                </Form.Item>
+                <Form.Item shouldUpdate={(prevValues, curValues) => prevValues?.definition !== curValues?.regex || prevValues?.regex} noStyle>
                   {({ getFieldValue }) => {
                     const definition = getFieldValue('definition');
+                    const regex = getFieldValue('regex');
                     return (
                       <Form.Item label={t('var.datasource.defaultValue')} name='defaultValue'>
                         <Select>
-                          {_.map(groupedDatasourceList[definition], (item) => (
-                            <Select.Option key={item.id} value={item.id}>
-                              {item.name}
-                            </Select.Option>
-                          ))}
+                          {_.map(
+                            _.filter(groupedDatasourceList[definition], (item) => {
+                              if (regex) {
+                                const reg = stringToRegex(regex);
+                                return reg ? reg.test(item.name) : false;
+                              }
+                              return true;
+                            }),
+                            (item) => (
+                              <Select.Option key={item.id} value={item.id}>
+                                {item.name}
+                              </Select.Option>
+                            ),
+                          )}
                         </Select>
                       </Form.Item>
                     );

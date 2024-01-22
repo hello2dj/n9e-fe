@@ -25,13 +25,16 @@ export interface subscribeItem {
   etime: number;
   btime: number;
   id: number;
-  group_id?: number;
+  group_id: number;
   datasource_ids: number[];
   redefine_severity?: number;
   redefine_channels?: number;
+  redefine_webhooks?: number;
   user_group_ids?: string;
   new_channels: string;
   prod: string;
+  severities?: number[];
+  note: string;
 }
 
 interface IuserItem {

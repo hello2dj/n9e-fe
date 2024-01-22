@@ -1,37 +1,51 @@
-import React from 'react';
-import { Form, Input, Select } from 'antd';
-import { SelectValue } from 'antd/lib/select';
+import React, { useContext } from 'react';
+import { Select, SelectProps } from 'antd';
 import _ from 'lodash';
-import { getAuthorizedDatasourceCates } from '@/components/AdvancedWrap';
+import { Cate } from '@/components/AdvancedWrap';
+import { CommonStateContext } from '@/App';
 
-interface IProps {
-  name?: string | string[];
-  layout?: 'horizontal' | 'vertical';
-  defaultValue?: string;
-  onChange?: (val: SelectValue) => void;
+interface IProps extends SelectProps {
+  scene: 'graph' | 'alert';
+  filterCates?: (cates: Cate[]) => Cate[];
+  disabled?: boolean;
 }
 
-export default function CateSelect(props: IProps) {
-  const { name = 'datasourceCate', layout, defaultValue, onChange } = props;
-  const cates = getAuthorizedDatasourceCates();
+export const ProSvg = ({ type = 'normal' }) => (
+  <div
+    style={{
+      border: `1px solid ${type === 'selected' ? '#fff' : '#6C53B1'}`,
+      color: '#fff',
+      background: '#6C53B1',
+      display: 'inline-block',
+      borderRadius: 2,
+      padding: '2px 6px',
+      fontSize: 12,
+      fontWeight: 'bolder',
+      fontFamily: 'PingFangSC-Regular',
+      lineHeight: 1,
+      transform: 'scale(0.8)',
+    }}
+  >
+    Pro
+  </div>
+);
+
+export default function DatasourceCateSelect({ filterCates, scene, disabled, ...props }: IProps) {
+  const { datasourceCateOptions } = useContext(CommonStateContext);
+  const cates = filterCates ? filterCates(datasourceCateOptions) : datasourceCateOptions;
+
   return (
-    <Input.Group>
-      {layout === 'horizontal' ? <span className='ant-input-group-addon'>数据源类型</span> : null}
-      <Form.Item label={layout === 'vertical'} name={name} noStyle initialValue={defaultValue}>
-        <Select
-          dropdownMatchSelectWidth={false}
-          style={{ minWidth: 70 }}
-          onChange={(val) => {
-            if (onChange) onChange(val);
-          }}
-        >
-          {_.map(cates, (item) => (
-            <Select.Option key={item.value} value={item.value}>
+    <Select {...props} optionLabelProp='label' disabled={disabled}>
+      {_.map(cates, (item) => {
+        return (
+          <Select.Option value={item.value} key={item.value} label={item.label}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {item.label}
-            </Select.Option>
-          ))}
-        </Select>
-      </Form.Item>
-    </Input.Group>
+              {item[`${scene}Pro`] ? <ProSvg /> : null}
+            </div>
+          </Select.Option>
+        );
+      })}
+    </Select>
   );
 }

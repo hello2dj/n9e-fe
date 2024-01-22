@@ -1,6 +1,8 @@
-import React from 'react';
-import { Form, Radio } from 'antd';
-import AdvancedWrap from '@/components/AdvancedWrap';
+import React, { useContext } from 'react';
+import { Form, Segmented } from 'antd';
+import _ from 'lodash';
+import { ProSvg } from '@/components/DatasourceSelect';
+import { CommonStateContext } from '@/App';
 import { ruleTypeOptions } from '../constants';
 
 interface IProps {
@@ -8,35 +10,45 @@ interface IProps {
   onChange?: (e: any) => void;
 }
 
+export const getProdOptions = (feats) => {
+  const prodOptions = _.cloneDeep(ruleTypeOptions);
+
+  if (feats?.fcBrain) {
+    prodOptions.push({
+      label: 'Anomaly',
+      value: 'anomaly',
+      pro: true,
+    });
+  }
+  return prodOptions;
+};
+
 export default function ProdSelect({ label, onChange = () => {} }: IProps) {
+  const { feats } = useContext(CommonStateContext);
+  const prodOptions = getProdOptions(feats);
+  const prod = Form.useWatch('prod');
+
   return (
-    <AdvancedWrap var='VITE_IS_ALERT_AI,VITE_IS_ALERT_ES'>
-      {(isShow) => {
-        let options = ruleTypeOptions;
-        if (isShow[0]) {
-          options = [
-            ...options,
-            {
-              label: 'Anomaly',
-              value: 'anomaly',
-            },
-          ];
-        }
-        if (isShow[1]) {
-          options = [
-            ...options,
-            {
-              label: 'Log',
-              value: 'logging',
-            },
-          ];
-        }
-        return (
-          <Form.Item name='prod' label={label}>
-            <Radio.Group options={options} onChange={onChange} optionType='button' buttonStyle='solid' />
-          </Form.Item>
-        );
-      }}
-    </AdvancedWrap>
+    <>
+      <Form.Item name='prod' hidden>
+        <div />
+      </Form.Item>
+      <Form.Item label={label}>
+        <Segmented
+          value={prod}
+          onChange={onChange}
+          options={_.map(prodOptions, (item) => {
+            return {
+              label: (
+                <div>
+                  {item.label} {item.pro ? <ProSvg type='normal' /> : null}
+                </div>
+              ),
+              value: item.value,
+            };
+          })}
+        />
+      </Form.Item>
+    </>
   );
 }

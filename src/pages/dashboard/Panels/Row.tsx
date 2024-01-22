@@ -18,12 +18,14 @@ import React, { useState } from 'react';
 import { Space, Modal, Button, Mentions } from 'antd';
 import { CaretRightOutlined, CaretDownOutlined, HolderOutlined, SettingOutlined, DeleteOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import _ from 'lodash';
+import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import { AddPanelIcon } from '../config';
 import { useGlobalState } from '../globalState';
 import { IVariable, replaceExpressionVars } from '../VariableConfig';
 
 interface IProps {
+  isPreview?: boolean;
   name: string;
   row: any;
   onToggle: () => void;
@@ -41,14 +43,18 @@ function replaceFieldWithVariable(value: string, dashboardId?: string, variableC
 
 export default function Row(props: IProps) {
   const { t } = useTranslation('dashboard');
-  const { name, row, onToggle, onAddClick, onEditClick, onDeleteClick } = props;
+  const { isPreview, name, row, onToggle, onAddClick, onEditClick, onDeleteClick } = props;
   const [editVisble, setEditVisble] = useState(false);
   const [newName, setNewName] = useState<string>();
   const [deleteVisible, setDeleteVisible] = useState(false);
   const [dashboardMeta] = useGlobalState('dashboardMeta');
 
   return (
-    <div className='dashboards-panels-row'>
+    <div
+      className={classNames('dashboards-panels-row', {
+        'dashboards-panels-row-collapsed': row.collapsed,
+      })}
+    >
       <div
         className='dashboards-panels-row-name'
         onClick={() => {
@@ -58,25 +64,27 @@ export default function Row(props: IProps) {
         <span style={{ paddingRight: 6 }}>{replaceFieldWithVariable(name, dashboardMeta.dashboardId, dashboardMeta.variableConfigWithOptions)}</span>
         {row.collapsed ? <CaretDownOutlined /> : <CaretRightOutlined />}
       </div>
-      <Space>
-        <AddPanelIcon
-          onClick={() => {
-            onAddClick();
-          }}
-        />
-        <SettingOutlined
-          onClick={() => {
-            setEditVisble(true);
-            setNewName(name);
-          }}
-        />
-        <DeleteOutlined
-          onClick={() => {
-            setDeleteVisible(true);
-          }}
-        />
-        {row.collapsed === false && <HolderOutlined className='dashboards-panels-item-drag-handle' />}
-      </Space>
+      {!isPreview && (
+        <Space>
+          <AddPanelIcon
+            onClick={() => {
+              onAddClick();
+            }}
+          />
+          <SettingOutlined
+            onClick={() => {
+              setEditVisble(true);
+              setNewName(name);
+            }}
+          />
+          <DeleteOutlined
+            onClick={() => {
+              setDeleteVisible(true);
+            }}
+          />
+          {row.collapsed === false && <HolderOutlined className='dashboards-panels-item-drag-handle' />}
+        </Space>
+      )}
       <Modal
         title={t('row.edit_title')}
         visible={editVisble}

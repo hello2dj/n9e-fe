@@ -23,9 +23,9 @@ const en_US = {
   },
   metrics: {
     title: 'Metrics',
-    search_placeholder: 'Space separated multiple keywords',
+    search_placeholder: 'Enter Space to separate different keywords',
     clear: 'Clear',
-    noData: 'No data, please select the left Labels',
+    noData: 'No data, please select the Labels',
   },
   graph: {
     function: 'Function',

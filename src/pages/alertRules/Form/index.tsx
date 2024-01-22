@@ -15,12 +15,12 @@
  *
  */
 import React, { useContext, useEffect, createContext } from 'react';
-import { Form, Space, Button, notification, message } from 'antd';
-import { useTranslation } from 'react-i18next';
+import { Form, Space, Button, notification, message, Tooltip } from 'antd';
+import { Trans, useTranslation } from 'react-i18next';
 import { useHistory, useParams, Link } from 'react-router-dom';
 import _ from 'lodash';
 import { CommonStateContext } from '@/App';
-import { addStrategy, EditStrategy, prometheusQuery } from '@/services/warning';
+import { addStrategy, EditStrategy, prometheusQuery, validateRule } from '@/services/warning';
 import Base from './Base';
 import Rule from './Rule';
 import Effective from './Effective';
@@ -43,7 +43,7 @@ export default function index(props: IProps) {
   const { bgid } = useParams<{ bgid: string }>();
   const { t } = useTranslation('alertRules');
   const [form] = Form.useForm();
-  const { groupedDatasourceList } = useContext(CommonStateContext);
+  const { groupedDatasourceList, licenseRulesRemaining } = useContext(CommonStateContext);
   const disabled = type === 3;
   const handleCheck = async (values) => {
     if (values.cate === 'prometheus') {
@@ -61,7 +61,6 @@ export default function index(props: IProps) {
       //   return false;
       // }
     } else if (type !== 1) {
-      const licenseRulesRemaining = _.toNumber(window.localStorage.getItem('license_rules_remaining'));
       if (licenseRulesRemaining === 0 && values.prod === 'anomaly') {
         message.error('可添加的智能告警规则数量已达上限，请联系客服');
       }
@@ -106,8 +105,8 @@ export default function index(props: IProps) {
         disabled,
       }}
     >
-      <Form form={form} layout='vertical' disabled={disabled}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 10px', marginBottom: 24 }}>
+      <Form form={form} layout='vertical' disabled={disabled} style={{ overflow: 'hidden auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 10px 0 10px', marginBottom: 24 }}>
           <Form.Item name='disabled' hidden>
             <div />
           </Form.Item>
@@ -141,6 +140,33 @@ export default function index(props: IProps) {
               >
                 {t('common:btn.save')}
               </Button>
+              {/* <Tooltip
+                title={
+                  <Trans
+                    ns='alertRules'
+                    i18nKey='testTip'
+                    components={{
+                      br: <br />,
+                    }}
+                  />
+                }
+              >
+                <Button
+                  onClick={() => {
+                    form
+                      .validateFields()
+                      .then(async (values) => {
+                        const data = processFormValues(values) as any;
+                        validateRule(data);
+                      })
+                      .catch((err) => {
+                        console.error(err);
+                      });
+                  }}
+                >
+                  {t('common:btn.test')}
+                </Button>
+              </Tooltip> */}
               <Link to='/alert-rules'>
                 <Button>{t('common:btn.cancel')}</Button>
               </Link>

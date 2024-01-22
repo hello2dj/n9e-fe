@@ -90,12 +90,12 @@ export default function Prometheus({ chartForm, variableConfig, dashboardId }) {
                       </Col>
                       <Col flex='116px'>
                         <Form.Item
-                          label={t('query.prometheus.time')}
+                          label={t('query.time')}
                           {...field}
                           name={[field.name, 'time']}
                           tooltip={{
                             getPopupContainer: () => document.body,
-                            title: t('query.prometheus.time_tip'),
+                            title: t('query.time_tip'),
                           }}
                           normalize={(val) => {
                             return {
@@ -119,15 +119,7 @@ export default function Prometheus({ chartForm, variableConfig, dashboardId }) {
                         </Form.Item>
                       </Col>
                       <Col flex='72px'>
-                        <Form.Item
-                          label='Step'
-                          {...field}
-                          name={[field.name, 'step']}
-                          tooltip={{
-                            getPopupContainer: () => document.body,
-                            title: t('query.prometheus.step_tip'),
-                          }}
-                        >
+                        <Form.Item label='Step' {...field} name={[field.name, 'step']}>
                           <Resolution />
                         </Form.Item>
                       </Col>

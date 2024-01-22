@@ -6,21 +6,22 @@ import _ from 'lodash';
 import { FormInstance } from 'antd/lib/form/Form';
 import PromGraph from '@/components/PromGraphCpt';
 import { IRawTimeRange, timeRangeUnix, isMathString } from '@/components/TimeRangePicker';
+import { queryStringOptions } from '../constants';
 
 type IMode = 'table' | 'graph';
 interface IProps {
-  defaultPromQL: string;
   headerExtra: HTMLDivElement | null;
   datasourceValue: number;
   form: FormInstance;
+  panelIdx?: number;
 }
 
 export default function Prometheus(props: IProps) {
-  const { headerExtra, datasourceValue, form } = props;
+  const { headerExtra, datasourceValue, form, panelIdx = 0 } = props;
   const history = useHistory();
   const { search } = useLocation();
-  const query = queryString.parse(search);
-  const defaultPromQL = props.defaultPromQL || (_.isString(query.prom_ql) ? query.prom_ql : '');
+  const query = queryString.parse(search, queryStringOptions);
+  const defaultPromQL = _.isString(query.prom_ql) ? query.prom_ql : '';
 
   let defaultTime: undefined | IRawTimeRange;
 
@@ -34,12 +35,6 @@ export default function Prometheus(props: IProps) {
   return (
     <PromGraph
       type={query.mode as IMode}
-      onTypeChange={(newType) => {
-        history.replace({
-          pathname: '/metric/explorer',
-          search: queryString.stringify({ ...query, mode: newType }),
-        });
-      }}
       defaultTime={defaultTime}
       onTimeChange={(newRange) => {
         let { start, end } = newRange;
@@ -48,12 +43,14 @@ export default function Prometheus(props: IProps) {
           start = parsedRange.start as any;
           end = parsedRange.end as any;
         }
-        history.replace({
-          pathname: '/metric/explorer',
-          search: queryString.stringify({ ...query, start, end }),
-        });
+        if (panelIdx === 0) {
+          history.replace({
+            pathname: '/metric/explorer',
+            search: queryString.stringify({ ...query, start, end }),
+          });
+        }
       }}
-      promQL={defaultPromQL}
+      promQL={defaultPromQL as any}
       datasourceValue={datasourceValue}
       graphOperates={{ enabled: true }}
       globalOperates={{ enabled: true }}

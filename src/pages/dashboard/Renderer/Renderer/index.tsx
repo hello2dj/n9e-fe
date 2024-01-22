@@ -19,8 +19,21 @@ import _ from 'lodash';
 import classNames from 'classnames';
 import { useInViewport } from 'ahooks';
 import { useTranslation } from 'react-i18next';
-import { Dropdown, Menu, Tooltip, Space } from 'antd';
-import { InfoCircleOutlined, MoreOutlined, LinkOutlined, SettingOutlined, ShareAltOutlined, DeleteOutlined, CopyOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons';
+import { Dropdown, Menu, Tooltip, Space, Drawer } from 'antd';
+import {
+  InfoCircleOutlined,
+  MoreOutlined,
+  LinkOutlined,
+  SettingOutlined,
+  ShareAltOutlined,
+  DeleteOutlined,
+  CopyOutlined,
+  SyncOutlined,
+  DragOutlined,
+  WarningOutlined,
+  ExportOutlined,
+  ClearOutlined,
+} from '@ant-design/icons';
 import { IRawTimeRange } from '@/components/TimeRangePicker';
 import Timeseries from './Timeseries';
 import Stat from './Stat';
@@ -31,11 +44,14 @@ import BarGauge from './BarGauge';
 import Text from './Text';
 import Gauge from './Gauge';
 import Iframe from './Iframe';
+import Heatmap from './Heatmap';
+import BarChart from './BarChart';
 import { IVariable } from '../../VariableConfig/definition';
 import Markdown from '../../Editor/Components/Markdown';
 import useQuery from '../datasource/useQuery';
 import { IPanel } from '../../types';
 import replaceFieldWithVariable from '../utils/replaceFieldWithVariable';
+import Inspect from '../Inspect';
 import './style.less';
 
 interface IProps {
@@ -44,6 +60,7 @@ interface IProps {
   dashboardId: string;
   id?: string;
   time: IRawTimeRange;
+  setRange?: (range: IRawTimeRange) => void;
   values: IPanel;
   variableConfig?: IVariable[];
   isPreview?: boolean; // 是否是预览，预览中不显示编辑和分享
@@ -60,9 +77,11 @@ function index(props: IProps) {
   const [visible, setVisible] = useState(false);
   const values = _.cloneDeep(props.values);
   const ref = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<any>(null);
   const bodyWrapRef = useRef<HTMLDivElement>(null);
   const [inViewPort] = useInViewport(ref);
-  const { series, error, loading } = useQuery({
+  const [inspect, setInspect] = useState(false);
+  const { query, series, error, loading } = useQuery({
     id,
     dashboardId,
     time,
@@ -73,10 +92,12 @@ function index(props: IProps) {
     datasourceValue: values.datasourceValue || datasourceValue,
     spanNulls: values.custom?.spanNulls,
     scopedVars: values.scopedVars,
+    inspect,
+    type: values.type,
   });
   const name = replaceFieldWithVariable(dashboardId, values.name, variableConfig, values.scopedVars);
   const description = replaceFieldWithVariable(dashboardId, values.description, variableConfig, values.scopedVars);
-  const tipsVisible = !error && (description || !_.isEmpty(values.links));
+  const tipsVisible = description || !_.isEmpty(values.links);
 
   useEffect(() => {
     setTime(props.time);
@@ -93,15 +114,17 @@ function index(props: IProps) {
     series,
   };
   const RendererCptMap = {
-    timeseries: () => <Timeseries {...subProps} themeMode={themeMode} time={time} />,
-    stat: () => <Stat {...subProps} bodyWrapRef={bodyWrapRef} themeMode={themeMode} />,
-    table: () => <Table {...subProps} themeMode={themeMode} />,
-    pie: () => <Pie {...subProps} themeMode={themeMode} time={time} />,
-    hexbin: () => <Hexbin {...subProps} themeMode={themeMode} />,
-    barGauge: () => <BarGauge {...subProps} themeMode={themeMode} />,
+    timeseries: () => <Timeseries {...subProps} themeMode={themeMode} time={time} setRange={props.setRange} />,
+    stat: () => <Stat {...subProps} bodyWrapRef={bodyWrapRef} themeMode={themeMode} isPreview={isPreview} />,
+    table: () => <Table {...subProps} themeMode={themeMode} time={time} isPreview={isPreview} ref={tableRef} />,
+    pie: () => <Pie {...subProps} themeMode={themeMode} time={time} isPreview={isPreview} />,
+    hexbin: () => <Hexbin {...subProps} themeMode={themeMode} time={time} isPreview={isPreview} />,
+    barGauge: () => <BarGauge {...subProps} themeMode={themeMode} time={time} />,
     text: () => <Text {...subProps} />,
-    gauge: () => <Gauge {...subProps} themeMode={themeMode} />,
+    gauge: () => <Gauge {...subProps} themeMode={themeMode} isPreview={isPreview} />,
     iframe: () => <Iframe {...subProps} time={time} />,
+    heatmap: () => <Heatmap {...subProps} themeMode={themeMode} time={time} isPreview={isPreview} />,
+    barchart: () => <BarChart {...subProps} themeMode={themeMode} time={time} isPreview={isPreview} />,
   };
 
   return (
@@ -113,32 +136,7 @@ function index(props: IProps) {
       ref={ref}
     >
       <div className='renderer-body-wrap' ref={bodyWrapRef}>
-        <div className='renderer-header graph-header dashboards-panels-item-drag-handle'>
-          {tipsVisible ? (
-            <Tooltip
-              placement='leftTop'
-              overlayInnerStyle={{
-                maxWidth: 300,
-              }}
-              getPopupContainer={() => ref.current!}
-              title={
-                <Space direction='vertical'>
-                  {description ? <Markdown content={description} /> : null}
-                  {_.map(values.links, (link, i) => {
-                    return (
-                      <div key={i}>
-                        <a href={replaceFieldWithVariable(dashboardId, link.url, variableConfig, values.scopedVars)} target={link.targetBlank ? '_blank' : '_self'}>
-                          {replaceFieldWithVariable(dashboardId, link.title, variableConfig, values.scopedVars)}
-                        </a>
-                      </div>
-                    );
-                  })}
-                </Space>
-              }
-            >
-              <div className='renderer-header-desc'>{description ? <InfoCircleOutlined /> : <LinkOutlined />}</div>
-            </Tooltip>
-          ) : null}
+        <div className='renderer-header graph-header'>
           {error && (
             <Tooltip
               title={error}
@@ -149,101 +147,178 @@ function index(props: IProps) {
               getPopupContainer={() => ref.current!}
             >
               <div className='renderer-header-error'>
-                <InfoCircleOutlined style={{ color: 'red' }} />
+                <WarningOutlined />
               </div>
             </Tooltip>
           )}
-          <div className='renderer-header-content'>
+          <div
+            className='renderer-header-content'
+            style={{
+              width: error ? 'calc(100% - 58px)' : 'calc(100% - 32px)',
+            }}
+          >
             <Tooltip title={name} getPopupContainer={() => ref.current!}>
-              <div className='renderer-header-title'>{name}</div>
+              <div className='renderer-header-title dashboards-panels-item-drag-handle'>{name}</div>
             </Tooltip>
+            {tipsVisible ? (
+              <Tooltip
+                placement='top'
+                overlayInnerStyle={{
+                  maxWidth: 300,
+                }}
+                getPopupContainer={() => ref.current!}
+                title={
+                  <Space direction='vertical'>
+                    {description ? <Markdown content={description} /> : null}
+                    {_.map(values.links, (link, i) => {
+                      return (
+                        <div key={i}>
+                          <a href={replaceFieldWithVariable(dashboardId, link.url, variableConfig, values.scopedVars)} target={link.targetBlank ? '_blank' : '_self'}>
+                            {replaceFieldWithVariable(dashboardId, link.title, variableConfig, values.scopedVars)}
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </Space>
+                }
+              >
+                <div className='renderer-header-desc'>{description ? <InfoCircleOutlined /> : <LinkOutlined />}</div>
+              </Tooltip>
+            ) : null}
           </div>
-          <div className='renderer-header-loading'>
+          <div
+            className='renderer-header-controllers'
+            style={{
+              width: name ? 28 : 52,
+            }}
+          >
             {loading ? (
-              <SyncOutlined spin />
+              <SyncOutlined spin style={{ marginRight: 8 }} />
             ) : (
               !isPreview && (
-                <Dropdown
-                  trigger={['click']}
-                  placement='bottom'
-                  getPopupContainer={() => ref.current!}
-                  overlayStyle={{
-                    minWidth: '100px',
-                  }}
-                  visible={visible}
-                  onVisibleChange={(visible) => {
-                    setVisible(visible);
-                  }}
-                  overlay={
-                    <Menu>
-                      <Menu.Item
-                        onClick={() => {
-                          setVisible(true);
-                          setTime({
-                            ...time,
-                            refreshFlag: _.uniqueId('refreshFlag_ '),
-                          });
-                        }}
-                        key='0'
-                      >
-                        <Tooltip title={<div>{/* {t('refresh_tip', { num: getStepByTimeAndStep(time, step) })} */}</div>} placement='left'>
+                <Space size={2} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  {!name && <DragOutlined className='renderer-header-controller dashboards-panels-item-drag-handle' />}
+                  <Dropdown
+                    trigger={['click']}
+                    placement='bottom'
+                    getPopupContainer={() => ref.current!}
+                    overlayStyle={{
+                      minWidth: '130px',
+                    }}
+                    visible={visible}
+                    onVisibleChange={(visible) => {
+                      setVisible(visible);
+                    }}
+                    overlay={
+                      <Menu>
+                        <Menu.Item
+                          onClick={() => {
+                            setVisible(true);
+                            setTime({
+                              ...time,
+                              refreshFlag: _.uniqueId('refreshFlag_ '),
+                            });
+                          }}
+                          key='refresh_btn'
+                        >
                           <div>
                             <SyncOutlined style={{ marginRight: 8 }} />
                             {t('refresh_btn')}
                           </div>
-                        </Tooltip>
-                      </Menu.Item>
-                      {!values.repeatPanelId && (
+                        </Menu.Item>
+                        {!values.repeatPanelId && (
+                          <Menu.Item
+                            onClick={() => {
+                              setVisible(false);
+                              if (onEditClick) onEditClick();
+                            }}
+                            key='edit_btn'
+                          >
+                            <SettingOutlined style={{ marginRight: 8 }} />
+                            {t('common:btn.edit')}
+                          </Menu.Item>
+                        )}
+                        {!values.repeatPanelId && (
+                          <Menu.Item
+                            onClick={() => {
+                              setVisible(false);
+                              if (onCloneClick) onCloneClick();
+                            }}
+                            key='clone_btn'
+                          >
+                            <CopyOutlined style={{ marginRight: 8 }} />
+                            {t('common:btn.clone')}
+                          </Menu.Item>
+                        )}
                         <Menu.Item
                           onClick={() => {
                             setVisible(false);
-                            if (onEditClick) onEditClick();
+                            if (onShareClick) onShareClick();
                           }}
-                          key='1'
+                          key='share_btn'
                         >
-                          <SettingOutlined style={{ marginRight: 8 }} />
-                          {t('common:btn.edit')}
+                          <ShareAltOutlined style={{ marginRight: 8 }} />
+                          {t('share_btn')}
                         </Menu.Item>
-                      )}
-                      {!values.repeatPanelId && (
+                        {values.type === 'table' && (
+                          <Menu.Item
+                            onClick={() => {
+                              tableRef.current.exportCsv();
+                              setVisible(false);
+                            }}
+                            key='export_btn'
+                          >
+                            <ExportOutlined style={{ marginRight: 8 }} />
+                            {t('export_btn')}
+                          </Menu.Item>
+                        )}
+                        {values.type === 'table' && (
+                          <Tooltip title={t('clear_cache_btn_tip')} placement='left'>
+                            <Menu.Item
+                              onClick={() => {
+                                window.localStorage.removeItem(`dashboard-table2.1-resizable-${values.id}`);
+                                setVisible(false);
+                              }}
+                              key='clear_cache_btn'
+                            >
+                              <ClearOutlined style={{ marginRight: 8 }} />
+                              {t('clear_cache_btn')}
+                            </Menu.Item>
+                          </Tooltip>
+                        )}
+
                         <Menu.Item
                           onClick={() => {
                             setVisible(false);
-                            if (onCloneClick) onCloneClick();
+                            setTime({
+                              ...time,
+                              refreshFlag: _.uniqueId('refreshFlag_ '),
+                            });
+                            setInspect(true);
                           }}
-                          key='2'
+                          key='inspect_btn'
                         >
-                          <CopyOutlined style={{ marginRight: 8 }} />
-                          {t('common:btn.clone')}
+                          <InfoCircleOutlined style={{ marginRight: 8 }} />
+                          {t('inspect_btn')}
                         </Menu.Item>
-                      )}
-                      <Menu.Item
-                        onClick={() => {
-                          setVisible(false);
-                          if (onShareClick) onShareClick();
-                        }}
-                        key='3'
-                      >
-                        <ShareAltOutlined style={{ marginRight: 8 }} />
-                        {t('share_btn')}
-                      </Menu.Item>
-                      {!values.repeatPanelId && (
-                        <Menu.Item
-                          onClick={() => {
-                            setVisible(false);
-                            if (onDeleteClick) onDeleteClick();
-                          }}
-                          key='4'
-                        >
-                          <DeleteOutlined style={{ marginRight: 8 }} />
-                          {t('common:btn.delete')}
-                        </Menu.Item>
-                      )}
-                    </Menu>
-                  }
-                >
-                  <MoreOutlined className='renderer-header-more' />
-                </Dropdown>
+                        {!values.repeatPanelId && (
+                          <Menu.Item
+                            onClick={() => {
+                              setVisible(false);
+                              if (onDeleteClick) onDeleteClick();
+                            }}
+                            key='delete_btn'
+                          >
+                            <DeleteOutlined style={{ marginRight: 8 }} />
+                            {t('common:btn.delete')}
+                          </Menu.Item>
+                        )}
+                      </Menu>
+                    }
+                  >
+                    <MoreOutlined className='renderer-header-controller' />
+                  </Dropdown>
+                </Space>
               )
             )}
           </div>
@@ -256,8 +331,22 @@ function index(props: IProps) {
           )}
         </div>
       </div>
+      <Drawer
+        title={t('panel.inspect.title')}
+        placement='right'
+        width={800}
+        onClose={() => {
+          setInspect(false);
+        }}
+        visible={inspect}
+      >
+        <Inspect query={query} values={values} />
+      </Drawer>
     </div>
   );
 }
 
-export default React.memo(index);
+export default React.memo(index, (prevProps, nextProps) => {
+  const omitKeys = ['setRange', 'onCloneClick', 'onShareClick', 'onEditClick', 'onDeleteClick'];
+  return _.isEqual(_.omit(prevProps, omitKeys), _.omit(nextProps, omitKeys));
+});

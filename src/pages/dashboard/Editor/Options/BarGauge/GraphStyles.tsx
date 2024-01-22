@@ -16,9 +16,8 @@
  */
 import React from 'react';
 import { Form, Select, Row, Col, InputNumber, Input } from 'antd';
-import { CaretDownOutlined } from '@ant-design/icons';
 import _ from 'lodash';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { Panel } from '../../Components/Collapse';
 import { calcsOptions } from '../../config';
 import ColorPicker from '../../../Components/ColorPicker';
@@ -32,12 +31,12 @@ export default function GraphStyles() {
       <>
         <Row gutter={10}>
           <Col span={12}>
-            <Form.Item label={t('panel.custom.calc')} name={[...namePrefix, 'calc']}>
-              <Select suffixIcon={<CaretDownOutlined />}>
+            <Form.Item label={t('panel.custom.calc')} name={[...namePrefix, 'calc']} tooltip={t('panel.custom.calc_tip')}>
+              <Select>
                 {_.map(calcsOptions, (item, key) => {
                   return (
                     <Select.Option key={key} value={key}>
-                      {i18n.language === 'en_US' ? key : item.name}
+                      {t(`calcs.${key}`)}
                     </Select.Option>
                   );
                 })}
@@ -73,6 +72,20 @@ export default function GraphStyles() {
                 <Select.Option value='asc'>Asc</Select.Option>
                 <Select.Option value='desc'>Desc</Select.Option>
               </Select>
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={10}>
+          <Col span={24}>
+            <Form.Item
+              label={t('panel.custom.detailUrl')}
+              name={[...namePrefix, 'detailUrl']}
+              tooltip={{
+                overlayInnerStyle: { width: 330 },
+                title: <Trans ns='dashboard' i18nKey='dashboard:link.url_tip' components={{ 1: <br /> }} />,
+              }}
+            >
+              <Input style={{ width: '100%' }} />
             </Form.Item>
           </Col>
         </Row>

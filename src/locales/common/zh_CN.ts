@@ -1,5 +1,4 @@
 const zh_CN = {
-  docs: '文档',
   business_group: '应用',
   search_placeholder: '搜索',
   nodata: '暂无数据',
@@ -29,6 +28,7 @@ const zh_CN = {
     batch_modify: '批量修改',
     batch_export: '批量导出',
     batch_import: '批量导入',
+    test: '测试',
   },
   table: {
     name: '名称',
@@ -45,6 +45,7 @@ const zh_CN = {
     total: '共 {{total}} 条',
   },
   datasource: {
+    prod: '监控类型',
     name: '数据源',
     type: '数据源类型',
     id: '关联数据源',
@@ -149,7 +150,7 @@ const zh_CN = {
   'task.save.temporarily': '保存暂不执行',
   'task.save.execute': '保存立刻执行',
   'task.tip.title': '提示信息',
-  'task.tip.content': '如果你的角色是管理员，则可以在任意机器执行脚本；否则，只能对有管理权限的应用下的机器执行脚本',
+  'task.tip.content': '如果你的角色是管理员，则可以在任意机器执行脚本；否则，只能对有管理权限的业务组下的机器执行脚本',
 
   'last.7.days': '最近 7 天',
   'last.15.days': '最近 15 天',

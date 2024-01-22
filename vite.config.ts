@@ -16,8 +16,9 @@
  */
 import { defineConfig } from 'vite';
 import reactRefresh from '@vitejs/plugin-react-refresh';
-import svgr from 'vite-plugin-svgr';
 import { md } from './plugins/md';
+import plusResolve from './plugins/plusResolve';
+const reactSvgPlugin = require('./plugins/svg');
 
 const chunk2 = [
   '@codemirror/autocomplete',
@@ -36,7 +37,7 @@ const antdChunk = ['antd'];
 // https://vitejs.dev/config/
 export default defineConfig({
   base: 'n9e',
-  plugins: [md(), reactRefresh(), svgr()],
+  plugins: [md(), reactRefresh(), plusResolve(), reactSvgPlugin({ defaultExport: 'component' })],
   define: {},
   resolve: {
     alias: [
@@ -77,10 +78,12 @@ export default defineConfig({
     },
   },
   build: {
-    target: 'chrome58',
+    commonjsOptions: {
+      ignoreTryCatch: false, // https://github.com/wbkd/react-flow/issues/1840
+    },
     outDir: 'pub',
     chunkSizeWarningLimit: 650,
-    sourcemap: true,
+    sourcemap: false,
     rollupOptions: {
       output: {
         manualChunks: {

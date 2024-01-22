@@ -4,22 +4,23 @@ const en_US = {
   prod: 'Type',
   severity: 'Severity',
   notify_groups: 'Notify Groups',
-  basic_configs: 'Basic Configs',
+  basic_configs: 'Basic Settings',
   name: 'Name',
+  name_severities_appendtags: 'Name & Severity & Tags',
   append_tags: 'Tags',
   append_tags_msg: 'Invalid tag format, please check!',
   append_tags_msg1: 'Tag length should be less than or equal to 64 bits',
   append_tags_msg2: 'Tag format should be key=value. And the key starts with a letter or underscore, and is composed of letters, numbers and underscores.',
   append_tags_placeholder: 'Tag format is key=value, use Enter or Space to separate',
   note: 'Note',
-  rule_configs: 'Rule Configs',
+  rule_configs: 'Rule Configuration',
   inhibit: 'Inhibit',
-  interval: 'Interval',
-  duration: 'Duration',
+  interval: 'Execution Interval',
+  duration: 'Execution Duration',
   severity_label: 'Severity',
-  prom_eval_interval: 'Interval (s)',
-  prom_for_duration: 'Duration (s)',
-  effective_configs: 'Effective Configs',
+  prom_eval_interval: 'Execution Interval (s)',
+  prom_for_duration: 'Execution Duration (s)',
+  effective_configs: 'Effective Configuration',
   enable_status: 'Enable Now',
   effective_time: 'Effective Time',
   effective_time_start: 'Start Time',
@@ -29,7 +30,7 @@ const en_US = {
   effective_time_week_msg: 'Please select effective week',
   enable_in_bg: 'Enable in buisness group',
   enable_in_bg_tip: 'Determine the ownership relationship based on the ident in the alert event',
-  notify_configs: 'Notify Configs',
+  notify_configs: 'Notify Configuration',
   notify_channels: 'Channels',
   notify_recovered: 'Recovered',
   notify_recovered_tip: 'Send notification when the alert is recovered',
@@ -46,7 +47,9 @@ const en_US = {
     dashboard_link: 'Dashboard Link',
     desc: 'Description',
   },
-
+  invalid_datasource_tip_1: 'Datasources',
+  invalid_datasource_tip_2: 'are not configured with cluster of alert engine',
+  invalid_datasource_reload: 'Reload',
   host: {
     query: {
       title: 'Queries',
@@ -75,7 +78,6 @@ const en_US = {
     prom_for_duration_tip:
       '通常持续时长大于执行频率，在持续时长内按照执行频率多次执行PromQL查询，每次都触发才生成告警；如果持续时长置为0，表示只要有一次PromQL查询触发阈值，就生成告警',
   },
-
   metric: {
     query: {
       title: 'Queries',
@@ -84,7 +86,6 @@ const en_US = {
     prom_for_duration_tip:
       'Usually the duration is greater than the execution frequency. During the duration, PromQL query is executed multiple times according to the execution frequency, and an alert is generated only if it is triggered every time. If the duration is set to 0, an alert is generated as long as the threshold is triggered once during the PromQL query.',
   },
-
   batch: {
     not_select: 'Please select some rules first',
     delete: 'Delete Alert Rules',
@@ -117,8 +118,8 @@ const en_US = {
       options: {
         datasource_ids: 'Datasource',
         severity: 'Severity',
-        prom_eval_interval: 'Interval',
-        prom_for_duration: 'Duration',
+        prom_eval_interval: 'Execution Interval',
+        prom_for_duration: 'Execution Duration',
         disabled: 'Enable',
         effective_time: 'Effective Time',
         enable_in_bg: 'Enable in buisness group',
@@ -132,8 +133,14 @@ const en_US = {
         callbacks: 'Callbacks',
         note: 'Note',
         runbook_url: 'Runbook URL',
+        service_cal_ids: 'Service Calendar',
       },
     },
   },
+  brain_result_btn: 'Training Result',
+  testTip: `
+  Rule validity check：<br />
+  1. Check channels and groups
+  `,
 };
 export default en_US;

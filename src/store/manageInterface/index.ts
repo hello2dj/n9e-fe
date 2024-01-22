@@ -54,7 +54,7 @@ export interface TeamList {
 }
 export enum UserType {
   User = '用户',
-  Team = '用户组',
+  Team = '团队',
 }
 export interface TeamInfo {
   user_groups?: Team;

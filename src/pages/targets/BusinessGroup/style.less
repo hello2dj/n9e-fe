@@ -3,6 +3,7 @@
     width: 0px;
     padding: 0px;
     margin: 0px;
+    visibility: unset !important; // 解决和 tailwindcss 的 collapse 冲突
     .collapse-btn {
       right: 0px;
     }
@@ -66,5 +67,32 @@
     width: 10px;
     border-radius: 6px;
     background: rgba(0, 0, 0, 0.1);
+  }
+}
+
+.n9e-biz-group-item {
+  justify-content: space-between;
+  padding: 6px 8px;
+  cursor: pointer;
+  &.active {
+    background-color: fade(@primary-color, 10%);
+  }
+}
+
+.n9e-biz-group-group {
+  padding-bottom: 0;
+  user-select: none;
+  & > .name {
+    margin-bottom: 4px;
+  }
+}
+
+.business-group-tree {
+  .ant-tree-node-content-wrapper {
+    user-select: unset;
+    cursor: default;
+  }
+  .ant-tree-node-content-wrapper-normal {
+    cursor: pointer;
   }
 }

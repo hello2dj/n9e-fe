@@ -6,11 +6,15 @@ import queryString from 'query-string';
 import PageLayout from '@/components/pageLayout';
 import Webhooks from './Webhooks';
 import Script from './Script';
+import Info from '../../account/info'
 import Channels from './Channels';
 import Contacts from './Contacts';
 import SMTP from './SMTP';
+// @ts-ignore
+import NotificationSettings from 'plus:/parcels/NotificationSettings';
 import './style.less';
 import './locale';
+import { panelBaseProps } from '@/pages/alertRules/constants';
 
 export default function index() {
   const { t } = useTranslation('notificationSettings');
@@ -18,6 +22,39 @@ export default function index() {
   const query = queryString.parse(search);
   const history = useHistory();
   const [activeKey, setActiveKey] = React.useState((query.tab as string) || 'webhooks');
+  const panes = [
+    {
+      key: 'webhooks',
+      tab: t('webhooks.title'),
+      content: <Webhooks />,
+    },
+    // {
+    //   key: 'script',
+    //   tab: t('script.title'),
+    //   content: <Script />,
+    // },
+    {
+      key: 'info',
+      tab: t('告警地址设置'),
+      content: <Info />,
+    },
+    {
+      key: 'channels',
+      tab: t('channels.title'),
+      content: <Channels />,
+    },
+    {
+      key: 'contacts',
+      tab: t('contacts.title'),
+      content: <Contacts />,
+    },
+    // {
+    //   key: 'smtp',
+    //   tab: t('smtp.title'),
+    //   content: <SMTP />,
+    // },
+    ...(NotificationSettings() || []),
+  ];
 
   return (
     <PageLayout title={t('title')}>
@@ -32,26 +69,17 @@ export default function index() {
             onChange={(val) => {
               setActiveKey(val);
               history.push({
-                hash: location.pathname,
                 search: `?tab=${val}`,
               });
             }}
           >
-            <Tabs.TabPane tab={t('webhooks.title')} key='webhooks'>
-              <Webhooks />
-            </Tabs.TabPane>
-            <Tabs.TabPane tab={t('script.title')} key='script'>
-              <Script />
-            </Tabs.TabPane>
-            <Tabs.TabPane tab={t('channels.title')} key='channels'>
-              <Channels />
-            </Tabs.TabPane>
-            <Tabs.TabPane tab={t('contacts.title')} key='contacts'>
-              <Contacts />
-            </Tabs.TabPane>
-            <Tabs.TabPane tab={t('smtp.title')} key='smtp'>
-              <SMTP />
-            </Tabs.TabPane>
+            {panes.map((pane) => {
+              return (
+                <Tabs.TabPane tab={pane.tab} key={pane.key}>
+                  {pane.content}
+                </Tabs.TabPane>
+              );
+            })}
           </Tabs>
         </div>
       </div>

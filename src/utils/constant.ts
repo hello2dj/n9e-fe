@@ -14,6 +14,8 @@
  * limitations under the License.
  *
  */
+// @ts-ignore
+import { AdvancedDatasourceCateEnum } from 'plus:/types';
 export const PAGE_SIZE = 15;
 export const PAGE_SIZE_MAX = 100000;
 export const PAGE_SIZE_OPTION = 20;
@@ -57,32 +59,17 @@ export const chartDefaultOptions = {
   animation: false,
 };
 
-export const normalDatasourceCates = [
-  {
-    value: 'prometheus',
-    label: 'Prometheus',
-  },
-  {
-    value: 'elasticsearch',
-    label: 'Elasticsearch',
-  },
-];
-
-export const datasourceCates = [
-  ...normalDatasourceCates,
-  {
-    value: 'aliyun-sls',
-    label: '阿里云SLS',
-  },
-];
-
-export const datasourceCatesMap = {
-  normal: normalDatasourceCates,
-  all: datasourceCates,
-};
-
-export enum DatasourceCateEnum {
+enum BaseDatasourceCateEnum {
   prometheus = 'prometheus',
   elasticsearch = 'elasticsearch',
-  aliyunSLS = 'aliyun-sls',
+  tdengine = 'tdengine',
+  loki = 'loki',
 }
+
+export const DatasourceCateEnum = { ...BaseDatasourceCateEnum, ...AdvancedDatasourceCateEnum };
+export type DatasourceCateEnum = BaseDatasourceCateEnum | AdvancedDatasourceCateEnum;
+
+// export const N9E_PATHNAME = import.meta.env.VITE_IS_ENT === 'true' || import.meta.env.VITE_IS_PRO === 'true' ? 'n9e-plus' : 'n9e';
+export const N9E_PATHNAME = 'n9e';
+
+export const AccessTokenKey = 'access_token';

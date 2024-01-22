@@ -21,23 +21,29 @@ import moment from 'moment';
 import _ from 'lodash';
 import { useAntdTable } from 'ahooks';
 import { Input, Tag, Button, Space, Table, Select, message } from 'antd';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import queryString from 'query-string';
 import PageLayout from '@/components/pageLayout';
 import RefreshIcon from '@/components/RefreshIcon';
-import { hoursOptions } from '@/pages/event/constants';
 import { CommonStateContext } from '@/App';
+import { getProdOptions } from '@/pages/alertRules/Form/components/ProdSelect';
+import DatasourceSelect from '@/components/DatasourceSelect/DatasourceSelect';
+import TimeRangePicker, { IRawTimeRange, parseRange, getDefaultValue } from '@/components/TimeRangePicker';
 import exportEvents, { downloadFile } from './exportEvents';
-import { getEvents } from './services';
+import { getEvents, getEventsByIds } from './services';
 import { SeverityColor } from '../event';
 import '../event/index.less';
 import './locale';
 
+const CACHE_KEY = 'alert_events_range';
+
 const Event: React.FC = () => {
   const { t } = useTranslation('AlertHisEvents');
-  const { groupedDatasourceList, busiGroups, datasourceList } = useContext(CommonStateContext);
+  const query = queryString.parse(useLocation().search);
+  const { groupedDatasourceList, busiGroups, feats, datasourceList } = useContext(CommonStateContext);
   const [refreshFlag, setRefreshFlag] = useState<string>(_.uniqueId('refresh_'));
   const [filter, setFilter] = useState<{
-    hours: number;
+    range: IRawTimeRange;
     datasourceIds: number[];
     bgid?: number;
     severity?: number;
@@ -45,16 +51,22 @@ const Event: React.FC = () => {
     queryContent: string;
     rule_prods: string[];
   }>({
-    hours: 6,
+    range: getDefaultValue(CACHE_KEY, {
+      start: 'now-6h',
+      end: 'now',
+    }),
     datasourceIds: [],
     queryContent: '',
     rule_prods: [],
   });
   const columns = [
     {
-      title: t('common:datasource.type'),
-      dataIndex: 'cate',
+      title: t('prod'),
+      dataIndex: 'rule_prod',
       width: 100,
+      render: (value) => {
+        return t(`rule_prod.${value}`);
+      },
     },
     {
       title: t('common:datasource.id'),
@@ -117,7 +129,7 @@ const Event: React.FC = () => {
   ];
   const [exportBtnLoadding, setExportBtnLoadding] = useState(false);
   const filterObj = Object.assign(
-    { hours: filter.hours },
+    { range: filter.range },
     filter.datasourceIds.length ? { datasource_ids: _.join(filter.datasourceIds, ',') } : {},
     filter.severity !== undefined ? { severity: filter.severity } : {},
     filter.queryContent ? { query: filter.queryContent } : {},
@@ -125,6 +137,23 @@ const Event: React.FC = () => {
     { bgid: filter.bgid },
     filter.rule_prods.length ? { rule_prods: _.join(filter.rule_prods, ',') } : {},
   );
+
+  let prodOptions = getProdOptions(feats);
+  if (import.meta.env.VITE_IS_ENT === 'true') {
+    prodOptions = [
+      ...prodOptions,
+      {
+        label: t('rule_prod.firemap'),
+        value: 'firemap',
+        pro: false,
+      },
+      {
+        label: t('rule_prod.northstar'),
+        value: 'northstar',
+        pro: false,
+      },
+    ];
+  }
 
   function renderLeftHeader() {
     return (
@@ -135,20 +164,17 @@ const Event: React.FC = () => {
               setRefreshFlag(_.uniqueId('refresh_'));
             }}
           />
-          <Select
-            style={{ minWidth: 80 }}
-            value={filter.hours}
+          <TimeRangePicker
+            localKey={CACHE_KEY}
+            value={filter.range}
             onChange={(val) => {
               setFilter({
                 ...filter,
-                hours: val,
+                range: val,
               });
             }}
-          >
-            {hoursOptions.map((item) => {
-              return <Select.Option value={item.value}>{t(`hours.${item.value}`)}</Select.Option>;
-            })}
-          </Select>
+            dateFormat='YYYY-MM-DD HH:mm:ss'
+          />
           <Select
             allowClear
             placeholder={t('prod')}
@@ -163,30 +189,25 @@ const Event: React.FC = () => {
             }}
             dropdownMatchSelectWidth={false}
           >
-            <Select.Option value='host'>Host</Select.Option>
-            <Select.Option value='metric'>Metric</Select.Option>
+            {prodOptions.map((item) => {
+              return (
+                <Select.Option value={item.value} key={item.value}>
+                  {item.label}
+                </Select.Option>
+              );
+            })}
           </Select>
-          <Select
-            allowClear
-            mode='multiple'
-            placeholder={t('common:datasource.id')}
-            style={{ minWidth: 100 }}
-            maxTagCount='responsive'
-            dropdownMatchSelectWidth={false}
+          <DatasourceSelect
+            style={{ width: 100 }}
+            filterKey='alertRule'
             value={filter.datasourceIds}
-            onChange={(val) => {
+            onChange={(val: number[]) => {
               setFilter({
                 ...filter,
                 datasourceIds: val,
               });
             }}
-          >
-            {_.map(datasourceList, (item) => (
-              <Select.Option value={item.id} key={item.id}>
-                {item.name}
-              </Select.Option>
-            ))}
-          </Select>
+          />
           <Select
             style={{ minWidth: 120 }}
             placeholder={t('common:business_group')}
@@ -198,6 +219,7 @@ const Event: React.FC = () => {
                 bgid: val,
               });
             }}
+            dropdownMatchSelectWidth={false}
           >
             {_.map(busiGroups, (item) => {
               return <Select.Option value={item.id}>{item.name}</Select.Option>;
@@ -253,7 +275,8 @@ const Event: React.FC = () => {
             loading={exportBtnLoadding}
             onClick={() => {
               setExportBtnLoadding(true);
-              exportEvents({ ...filterObj, limit: 1000000, p: 1 }, (err, csv) => {
+              const parsedRange = parseRange(filterObj.range);
+              exportEvents({ ..._.omit(filterObj, 'range'), stime: moment(parsedRange.start).unix(), etime: moment(parsedRange.end).unix(), limit: 1000000, p: 1 }, (err, csv) => {
                 if (err) {
                   message.error(t('export_failed'));
                 } else {
@@ -271,10 +294,21 @@ const Event: React.FC = () => {
   }
 
   const fetchData = ({ current, pageSize }) => {
+    if (query.ids && typeof query.ids === 'string') {
+      return getEventsByIds(query.ids).then((res) => {
+        return {
+          total: typeof query.ids === 'string' ? _.split(query.ids, ',').length : 0,
+          list: res.dat,
+        };
+      });
+    }
+    const parsedRange = parseRange(filterObj.range);
     return getEvents({
       p: current,
       limit: pageSize,
-      ...filterObj,
+      ..._.omit(filterObj, 'range'),
+      stime: moment(parsedRange.start).unix(),
+      etime: moment(parsedRange.end).unix(),
     }).then((res) => {
       return {
         total: res.dat.total,
@@ -286,13 +320,14 @@ const Event: React.FC = () => {
   const { tableProps } = useAntdTable(fetchData, {
     refreshDeps: [refreshFlag, JSON.stringify(filterObj)],
     defaultPageSize: 30,
+    debounceWait: 500,
   });
 
   return (
     <PageLayout icon={<AlertOutlined />} title={t('title')}>
       <div className='event-content'>
         <div className='table-area'>
-          {renderLeftHeader()}
+          {!query.ids && renderLeftHeader()}
           <Table
             size='small'
             columns={columns}

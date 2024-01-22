@@ -19,7 +19,7 @@ export default function PrometheusDetail(props: IProps) {
       label: 'PromQL',
       key: 'rule_config',
       render(ruleConfig) {
-        const { queries } = ruleConfig;
+        const queries = _.get(ruleConfig, 'queries', []);
         return (
           <div style={{ width: '100%' }}>
             {_.map(queries, (query) => {
@@ -35,9 +35,11 @@ export default function PrometheusDetail(props: IProps) {
                       type='link'
                       onClick={() => {
                         history.push({
-                          hash: '/metric/explorer',
+                          pathname: '/metric/explorer',
                           search: queryString.stringify({
                             prom_ql,
+                            data_source_name: 'prometheus',
+                            data_source_id: eventDetail.datasource_id,
                             mode: 'graph',
                             start: moment.unix(eventDetail.trigger_time).subtract(30, 'minutes').unix(),
                             end: moment.unix(eventDetail.trigger_time).add(30, 'minutes').unix(),

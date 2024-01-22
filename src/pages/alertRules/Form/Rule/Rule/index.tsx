@@ -18,6 +18,5 @@
 import Host from './Host';
 import Metric from './Metric';
 import Log from './Log';
-import Anomaly from './Anomaly';
 
-export { Host, Metric, Log, Anomaly };
+export { Host, Metric, Log };

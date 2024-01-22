@@ -16,7 +16,7 @@
  */
 import React from 'react';
 import { Form, Select, InputNumber, Row, Col, Tooltip, Input } from 'antd';
-import { InfoCircleOutlined, CaretDownOutlined } from '@ant-design/icons';
+import { InfoCircleOutlined } from '@ant-design/icons';
 import _ from 'lodash';
 import { useTranslation, Trans } from 'react-i18next';
 import { Panel } from '../../Components/Collapse';
@@ -24,18 +24,19 @@ import { Panel } from '../../Components/Collapse';
 interface IProps {
   preNamePrefix?: (string | number)[];
   namePrefix?: (string | number)[];
+  showMinMax?: boolean;
 }
 
 const { Option, OptGroup } = Select;
 
 export default function index(props: IProps) {
   const { t } = useTranslation('dashboard');
-  const { preNamePrefix = [], namePrefix = ['options', 'standardOptions'] } = props;
+  const { preNamePrefix = [], namePrefix = ['options', 'standardOptions'], showMinMax = true } = props;
 
   return (
     <Panel header={t('panel.standardOptions.title')}>
       <>
-        <Form.Item shouldUpdate>
+        <Form.Item shouldUpdate noStyle>
           {({ getFieldValue }) => {
             const unit = getFieldValue([...namePrefix, 'util']) || '';
             return (
@@ -66,15 +67,23 @@ export default function index(props: IProps) {
                     }
                     name={[...namePrefix, 'util']}
                   >
-                    <Select suffixIcon={<CaretDownOutlined />} placeholder='auto' allowClear>
+                    <Select placeholder='auto' allowClear showSearch>
                       <Option value='none'>none</Option>
-                      <OptGroup label='Data(SI)'>
+                      <OptGroup label='Data'>
                         <Option value='bitsSI'>bits(SI)</Option>
                         <Option value='bytesSI'>bytes(SI)</Option>
-                      </OptGroup>
-                      <OptGroup label='Data(IEC)'>
                         <Option value='bitsIEC'>bits(IEC)</Option>
                         <Option value='bytesIEC'>bytes(IEC)</Option>
+                      </OptGroup>
+                      <OptGroup label='Data rate'>
+                        <Option value='packetsSec'>packets/sec</Option>
+                        <Option value='bitsSecSI'>bits/sec(SI)</Option>
+                        <Option value='bytesSecSI'>bytes/sec(SI)</Option>
+                        <Option value='bitsSecIEC'>bits/sec(IEC)</Option>
+                        <Option value='bytesSecIEC'>bytes/sec(IEC)</Option>
+                      </OptGroup>
+                      <OptGroup label='Energy'>
+                        <Option value='dBm'>Decibel-milliwatt(dBm)</Option>
                       </OptGroup>
                       <OptGroup label='Percent'>
                         <Option value='percent'>percent(0-100)</Option>
@@ -103,17 +112,21 @@ export default function index(props: IProps) {
           }}
         </Form.Item>
         <Row gutter={10}>
-          <Col span={8}>
-            <Form.Item label={t('panel.standardOptions.min')} name={[...namePrefix, 'min']}>
-              <InputNumber placeholder='auto' style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label={t('panel.standardOptions.max')} name={[...namePrefix, 'max']}>
-              <InputNumber placeholder='auto' style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
+          {showMinMax && (
+            <Col span={8}>
+              <Form.Item label={t('panel.standardOptions.min')} name={[...namePrefix, 'min']}>
+                <InputNumber placeholder='auto' style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          )}
+          {showMinMax && (
+            <Col span={8}>
+              <Form.Item label={t('panel.standardOptions.max')} name={[...namePrefix, 'max']}>
+                <InputNumber placeholder='auto' style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          )}
+          <Col span={showMinMax ? 8 : 24}>
             <Form.Item label={t('panel.standardOptions.decimals')} name={[...namePrefix, 'decimals']}>
               <InputNumber placeholder='auto' style={{ width: '100%' }} />
             </Form.Item>

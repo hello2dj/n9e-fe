@@ -1,10 +1,13 @@
 import _ from 'lodash';
 import moment from 'moment';
-import { defaultRuleConfig } from './constants';
+import { DatasourceCateEnum } from '@/utils/constant';
+import { defaultRuleConfig, defaultValues } from './constants';
 import { DATASOURCE_ALL } from '../constants';
+// @ts-ignore
+import * as alertUtils from 'plus:/parcels/AlertRule/utils';
 
 export function getFirstDatasourceId(datasourceIds = [], datasourceList: { id: number }[] = []) {
-  return _.isEqual(datasourceIds, [DATASOURCE_ALL]) && datasourceList.length > 0 ? datasourceList[0]?.id : datasourceIds[0];
+  return _.isEqual(datasourceIds, [DATASOURCE_ALL]) && datasourceList.length > 0 ? datasourceList?.[0]?.id : datasourceIds?.[0];
 }
 
 export const parseTimeToValueAndUnit = (value?: number) => {
@@ -79,23 +82,39 @@ export function processFormValues(values) {
   if (values.prod === 'host') {
     cate = 'host';
   } else if (values.prod === 'anomaly') {
-    cate = 'anomaly';
-  } else if (values.prod === 'logging' && values.cate === 'elasticsearch') {
-    values.rule_config.queries = _.map(values.rule_config.queries, (item) => {
-      return {
-        ..._.omit(item, 'interval_unit'),
-        interval: normalizeTime(item.interval, item.interval_unit),
-      };
-    });
-    values.rule_config.triggers = _.map(values.rule_config.triggers, (trigger) => {
-      if (trigger.mode === 0) {
+    cate = 'prometheus';
+  }
+  if (_.isFunction(alertUtils.processFormValues)) {
+    values = alertUtils.processFormValues(values);
+  } else {
+    if (values?.rule_config?.queries) {
+      values.rule_config.queries = _.map(values.rule_config.queries, (item) => {
+        if (_.isArray(item?.keys?.labelKey)) {
+          item.keys.labelKey = _.join(item.keys.labelKey, ' ');
+        }
+        if (_.isArray(item?.keys?.valueKey)) {
+          item.keys.valueKey = _.join(item.keys.valueKey, ' ');
+        }
+        if (_.isArray(item?.keys?.metricKey)) {
+          item.keys.metricKey = _.join(item.keys.metricKey, ' ');
+        }
         return {
-          ...trigger,
-          exp: stringifyExpressions(trigger.expressions),
+          ..._.omit(item, 'interval_unit'),
+          interval: normalizeTime(item.interval, item.interval_unit),
         };
-      }
-      return trigger;
-    });
+      });
+    }
+    if (values?.rule_config?.triggers) {
+      values.rule_config.triggers = _.map(values.rule_config.triggers, (trigger) => {
+        if (trigger.mode === 0) {
+          return {
+            ...trigger,
+            exp: stringifyExpressions(trigger.expressions),
+          };
+        }
+        return trigger;
+      });
+    }
   }
   const data = {
     ..._.omit(values, 'effective_time'),
@@ -114,14 +133,21 @@ export function processFormValues(values) {
 }
 
 export function processInitialValues(values) {
-  if (values.prod === 'logging' && values.cate === 'elasticsearch') {
-    values.rule_config.queries = _.map(values.rule_config.queries, (item) => {
-      return {
-        ...item,
-        interval: parseTimeToValueAndUnit(item.interval).value,
-        interval_unit: parseTimeToValueAndUnit(item.interval).unit,
-      };
-    });
+  if (_.isFunction(alertUtils.processInitialValues)) {
+    values = alertUtils.processInitialValues(values);
+  } else {
+    if (values?.rule_config?.queries) {
+      values.rule_config.queries = _.map(values.rule_config.queries, (item) => {
+        _.set(item, 'keys.labelKey', item?.keys?.labelKey ? _.split(item.keys.labelKey, ' ') : []);
+        _.set(item, 'keys.valueKey', item?.keys?.valueKey ? _.split(item.keys.valueKey, ' ') : []);
+        _.set(item, 'keys.valueKey', item?.keys?.metricKey ? _.split(item.keys.metricKey, ' ') : []);
+        return {
+          ...item,
+          interval: parseTimeToValueAndUnit(item.interval).value,
+          interval_unit: parseTimeToValueAndUnit(item.interval).unit,
+        };
+      });
+    }
   }
   return {
     ...values,
@@ -133,19 +159,13 @@ export function processInitialValues(values) {
           url: item,
         }))
       : undefined,
-    effective_time: values?.enable_etimes
+    effective_time: values?.enable_etimes // TODO: 兼容旧数据
       ? values?.enable_etimes.map((item, index) => ({
           enable_stime: moment(values.enable_stimes[index], 'HH:mm'),
           enable_etime: moment(values.enable_etimes[index], 'HH:mm'),
           enable_days_of_week: values.enable_days_of_weeks[index],
         }))
-      : [
-          {
-            enable_stime: moment('00:00', 'HH:mm'),
-            enable_etime: moment('23:59', 'HH:mm'),
-            enable_days_of_week: ['1', '2', '3', '4', '5', '6', '0'],
-          },
-        ],
+      : defaultValues.effective_time,
     annotations: _.map(values?.annotations, (value, key) => ({
       key,
       value,
@@ -153,7 +173,7 @@ export function processInitialValues(values) {
   };
 }
 
-export function getDefaultValuesByProd(prod, defaultBrainParams) {
+export function getDefaultValuesByProd(prod, defaultBrainParams, isPlus = false) {
   if (prod === 'host') {
     return {
       prod,
@@ -182,11 +202,79 @@ export function getDefaultValuesByProd(prod, defaultBrainParams) {
     };
   }
   if (prod === 'logging') {
+    if (isPlus) {
+      return {
+        prod,
+        cate: 'elasticsearch',
+        datasource_ids: undefined,
+        rule_config: defaultRuleConfig.logging,
+      };
+    }
     return {
       prod,
-      cate: 'elasticsearch',
-      datasource_ids: undefined,
-      rule_config: defaultRuleConfig.logging,
+      cate: 'loki',
+      datasource_ids: [DATASOURCE_ALL],
+      rule_config: defaultRuleConfig.loki,
     };
+  }
+  if (prod === 'loki') {
+    return {
+      prod,
+      cate: 'loki',
+      datasource_ids: [DATASOURCE_ALL],
+      rule_config: defaultRuleConfig.loki,
+    };
+  }
+}
+
+export function getDefaultValuesByCate(prod, cate) {
+  if (cate === DatasourceCateEnum.prometheus) {
+    return {
+      prod,
+      cate,
+      datasource_ids: [DATASOURCE_ALL],
+      rule_config: defaultRuleConfig.metric,
+    };
+  }
+  if (cate === DatasourceCateEnum.tdengine) {
+    return {
+      prod,
+      cate,
+      datasource_ids: undefined,
+      rule_config: {
+        queries: [
+          {
+            ref: 'A',
+            interval: 1,
+            interval_unit: 'min',
+          },
+        ],
+        triggers: [
+          {
+            mode: 0,
+            expressions: [
+              {
+                ref: 'A',
+                comparisonOperator: '>',
+                value: 0,
+                logicalOperator: '&&',
+              },
+            ],
+            severity: 2,
+          },
+        ],
+      },
+    };
+  }
+  if (cate === DatasourceCateEnum.loki) {
+    return {
+      prod,
+      cate,
+      datasource_ids: [DATASOURCE_ALL],
+      rule_config: defaultRuleConfig.loki,
+    };
+  }
+  if (_.isFunction(alertUtils.getDefaultValuesByCate)) {
+    return alertUtils.getDefaultValuesByCate(prod, cate);
   }
 }

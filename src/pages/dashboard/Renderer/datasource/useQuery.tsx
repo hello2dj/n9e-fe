@@ -18,6 +18,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import _ from 'lodash';
 import { useDebounceFn } from 'ahooks';
 import { IRawTimeRange } from '@/components/TimeRangePicker';
+import { datasource as tdengineQuery } from '@/plugins/TDengine';
+import flatten from '@/utils/flatten';
 import { ITarget } from '../../types';
 import { getVaraiableSelected } from '../../VariableConfig/constant';
 import { IVariable } from '../../VariableConfig/definition';
@@ -25,7 +27,9 @@ import replaceExpressionBracket from '../utils/replaceExpressionBracket';
 import { getSerieName } from './utils';
 import prometheusQuery from './prometheus';
 import elasticsearchQuery from './elasticsearch';
-import aliyunSLS from './aliyunSLS';
+
+// @ts-ignore
+import plusDatasource from 'plus:/parcels/Dashboard/datasource';
 
 interface IProps {
   id?: string;
@@ -38,11 +42,14 @@ interface IProps {
   inViewPort?: boolean;
   spanNulls?: boolean;
   scopedVars?: any;
+  inspect?: boolean;
+  type?: string;
 }
 
 export default function usePrometheus(props: IProps) {
   const { dashboardId, datasourceCate, time, targets, variableConfig, inViewPort, spanNulls, datasourceValue } = props;
   const [series, setSeries] = useState<any[]>([]);
+  const [query, setQuery] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const cachedVariableValues = _.map(variableConfig, (item) => {
@@ -52,19 +59,29 @@ export default function usePrometheus(props: IProps) {
   const fetchQueryMap = {
     prometheus: prometheusQuery,
     elasticsearch: elasticsearchQuery,
-    'aliyun-sls': aliyunSLS,
+    tdengine: tdengineQuery,
+    ...plusDatasource,
   };
   const { run: fetchData } = useDebounceFn(
     () => {
       if (!datasourceCate) return;
       setLoading(true);
       fetchQueryMap[datasourceCate](props)
-        .then((res: any[]) => {
-          setSeries(res);
+        .then(({ series, query }: { series: any[]; query: any[] }) => {
+          setSeries(
+            _.map(series, (item) => {
+              return {
+                ...item,
+                metric: flatten(item.metric), // 日志数据可能会有多层嵌套，这里统一展开
+              };
+            }),
+          );
+          setQuery(query);
           setError('');
         })
         .catch((e) => {
           setSeries([]);
+          setQuery([]);
           setError(e.message);
         })
         .finally(() => {
@@ -105,5 +122,5 @@ export default function usePrometheus(props: IProps) {
     setSeries(_series);
   }, [JSON.stringify(_.map(targets, 'legend'))]);
 
-  return { series, error, loading };
+  return { query, series, error, loading };
 }

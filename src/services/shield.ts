@@ -23,6 +23,13 @@ export const getShieldList = function (params: { id: number }) {
   });
 };
 
+export const getBusiGroupsAlertMutes = function (gids: string) {
+  return request('/api/n9e/busi-groups/alert-mutes', {
+    method: RequestMethod.Get,
+    params: { gids },
+  });
+};
+
 export const addShield = function (data: any, busiId: number) {
   return request(`/api/n9e/busi-group/${busiId}/alert-mutes`, {
     method: RequestMethod.Post,
@@ -47,6 +54,13 @@ export const editShield = function (data: any[], busiId: number, shiedId: number
 export const updateShields = function (data: { ids: React.Key[]; fields: any }, busiId: number) {
   return request(`/api/n9e/busi-group/${busiId}/alert-mutes/fields`, {
     method: RequestMethod.Put,
+    data: data,
+  });
+};
+
+export const previewMutedEvents = function (data: any, busiId: number) {
+  return request(`/api/n9e/busi-group/${busiId}/alert-mutes/preview`, {
+    method: RequestMethod.Post,
     data: data,
   });
 };

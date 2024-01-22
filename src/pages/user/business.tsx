@@ -15,9 +15,12 @@
  *
  */
 import React, { useContext, useEffect, useState } from 'react';
+import moment from 'moment';
+import _ from 'lodash';
+import classNames from 'classnames';
 import PageLayout from '@/components/pageLayout';
-import { Button, Table, Input, message, List, Row, Col, Modal } from 'antd';
-import { EditOutlined, DeleteOutlined, SearchOutlined, UserOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { Button, Table, Input, message, Row, Col, Modal, Space, Tree } from 'antd';
+import { EditOutlined, DeleteOutlined, SearchOutlined, UserOutlined, InfoCircleOutlined, DownOutlined } from '@ant-design/icons';
 import UserInfoModal from './component/createModal';
 import { deleteBusinessTeamMember, getBusinessTeamList, getBusinessTeamInfo, deleteBusinessTeam } from '@/services/manage';
 import { Team, ActionType } from '@/store/manageInterface';
@@ -25,6 +28,7 @@ import { CommonStateContext } from '@/App';
 import { ColumnsType } from 'antd/lib/table';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@/utils';
+import { listToTree, getCollapsedKeys, getLocaleExpandedKeys, setLocaleExpandedKeys } from '@/components/BusinessGroup';
 import '@/components/BlankBusinessPlaceholder/index.less';
 import './index.less';
 
@@ -32,7 +36,7 @@ const { confirm } = Modal;
 export const PAGE_SIZE = 200;
 
 const Resource: React.FC = () => {
-  const { setBusiGroups } = useContext(CommonStateContext);
+  const { setBusiGroups, siteInfo } = useContext(CommonStateContext);
   const { t } = useTranslation('user');
   const urlQuery = useQuery();
   const id = urlQuery.get('id');
@@ -40,7 +44,7 @@ const Resource: React.FC = () => {
   const [action, setAction] = useState<ActionType>();
   const [teamId, setTeamId] = useState<string>(id || '');
   const [memberList, setMemberList] = useState<{ user_group: any }[]>([]);
-  const [teamInfo, setTeamInfo] = useState<{ name: string; id: number }>();
+  const [teamInfo, setTeamInfo] = useState<{ name: string; id: number; update_by: string; update_at: number }>();
   const [teamList, setTeamList] = useState<Team[]>([]);
   const [memberLoading, setMemberLoading] = useState<boolean>(false);
   const [searchMemberValue, setSearchMemberValue] = useState<string>('');
@@ -80,12 +84,12 @@ const Resource: React.FC = () => {
             confirm({
               title: t('common:confirm.delete'),
               onOk: () => {
-                deleteBusinessTeamMember(teamId, params).then((_) => {
+                deleteBusinessTeamMember(teamId, params).then(() => {
                   message.success(t('common:success.delete'));
-                  handleClose('deleteMember');
+                  getTeamList();
                 });
               },
-              onCancel: () => { },
+              onCancel: () => {},
             });
           }}
         >
@@ -107,7 +111,7 @@ const Resource: React.FC = () => {
     getTeamList(undefined, action === 'delete');
   };
 
-  // 获取应用列表
+  // 获取业务组列表
   const getTeamList = (search?: string, isDelete?: boolean) => {
     let params = {
       query: search,
@@ -115,14 +119,23 @@ const Resource: React.FC = () => {
     };
     getBusinessTeamList(params).then((data) => {
       setTeamList(data.dat || []);
-      if ((!teamId || isDelete) && data.dat.length > 0) {
+      if (
+        (!teamId ||
+          isDelete ||
+          _.every(data.dat, (item) => {
+            return item.id !== teamId;
+          })) &&
+        data.dat.length > 0
+      ) {
         setTeamId(data.dat[0].id);
+      } else {
+        teamId && getTeamInfoDetail(teamId);
       }
       setBusiGroups(data.dat || []);
     });
   };
 
-  // 获取应用详情
+  // 获取业务组详情
   const getTeamInfoDetail = (id: string) => {
     setMemberLoading(true);
     getBusinessTeamInfo(id).then((data) => {
@@ -180,21 +193,52 @@ const Resource: React.FC = () => {
                 }}
               />
             </div>
-
-            <List
-              style={{
-                marginBottom: '12px',
-                flex: 1,
-                overflow: 'auto',
-              }}
-              dataSource={teamList}
-              size='small'
-              renderItem={(item) => (
-                <List.Item key={item.id} className={teamId == item.id ? 'is-active' : ''} onClick={() => setTeamId(item.id)}>
-                  {item.name}
-                </List.Item>
-              )}
-            />
+            {siteInfo?.businessGroupDisplayMode == 'list' ? (
+              <div className='radio-list' style={{ overflowY: 'auto' }}>
+                {_.map(teamList, (item) => {
+                  return (
+                    <div
+                      className={classNames({
+                        'n9e-metric-views-list-content-item': true,
+                        active: item.id == teamId,
+                      })}
+                      key={item.id}
+                      onClick={() => {
+                        if (item.id !== teamId) {
+                          setTeamId(item.id as any);
+                        }
+                      }}
+                    >
+                      <span className='name'>{item.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className='radio-list' style={{ overflowY: 'auto' }}>
+                {!_.isEmpty(teamList) && (
+                  <Tree
+                    rootClassName='business-group-tree'
+                    showLine={{
+                      showLeafIcon: false,
+                    }}
+                    defaultExpandParent={false}
+                    defaultExpandedKeys={getCollapsedKeys(listToTree(teamList as any, siteInfo?.businessGroupSeparator), getLocaleExpandedKeys(), teamId as any)}
+                    selectedKeys={teamId ? [_.toString(teamId)] : []}
+                    blockNode
+                    switcherIcon={<DownOutlined />}
+                    onSelect={(_selectedKeys, e: any) => {
+                      const nodeId = e.node.id;
+                      setTeamId(nodeId as any);
+                    }}
+                    onExpand={(expandedKeys: string[]) => {
+                      setLocaleExpandedKeys(expandedKeys);
+                    }}
+                    treeData={listToTree(teamList as any, siteInfo?.businessGroupSeparator)}
+                  />
+                )}
+              </div>
+            )}
           </div>
           {teamList.length > 0 ? (
             <div className='resource-table-content'>
@@ -230,7 +274,7 @@ const Resource: React.FC = () => {
                             handleClose('delete');
                           });
                         },
-                        onCancel: () => { },
+                        onCancel: () => {},
                       });
                     }}
                   />
@@ -241,7 +285,18 @@ const Resource: React.FC = () => {
                     color: '#666',
                   }}
                 >
-                  {t('common:table.note')}：{t('business.note_content')}
+                  <Space>
+                    <span>ID：{teamInfo?.id}</span>
+                    <span>
+                      {t('common:table.note')}：{t('business.note_content')}
+                    </span>
+                    <span>
+                      {t('common:table.update_by')}：{teamInfo?.update_by ? teamInfo.update_by : '-'}
+                    </span>
+                    <span>
+                      {t('common:table.update_at')}：{teamInfo?.update_at ? moment.unix(teamInfo.update_at).format('YYYY-MM-DD HH:mm:ss') : '-'}
+                    </span>
+                  </Space>
                 </Col>
               </Row>
               <Row justify='space-between' align='middle'>

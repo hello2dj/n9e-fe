@@ -26,6 +26,7 @@ import { getBusiGroups } from '@/services/common';
 import { CommonStateContext } from '@/App';
 import List from './List';
 import BusinessGroup from './BusinessGroup';
+import BusinessGroup2 from '@/components/BusinessGroup';
 import './locale';
 import './index.less';
 
@@ -96,7 +97,20 @@ const OperationModal: React.FC<OperateionModalProps> = ({ operateType, setOperat
               return true;
             }
           });
-          return isInvalid ? Promise.reject(new Error(t('bind_tag.msg2'))) : Promise.resolve();
+          const tagkeys = value.map((tag) => {
+            const tagkey = tag.split('=')[0];
+            return tagkey;
+          });
+          const isDuplicateKey = tagkeys.some((tagkey, index) => {
+            return tagkeys.indexOf(tagkey) !== index;
+          });
+          if (isInvalid) {
+            return Promise.reject(new Error(t('bind_tag.msg2')));
+          }
+          if (isDuplicateKey) {
+            return Promise.reject(new Error(t('bind_tag.msg3')));
+          }
+          return Promise.resolve();
         },
       };
     }
@@ -131,7 +145,7 @@ const OperationModal: React.FC<OperateionModalProps> = ({ operateType, setOperat
     };
   };
 
-  // 移出应用弹窗内容
+  // 移出业务组弹窗内容
   const removeBusiDetail = () => {
     return {
       operateTitle: t('remove_busi.title'),
@@ -171,7 +185,7 @@ const OperationModal: React.FC<OperateionModalProps> = ({ operateType, setOperat
     };
   };
 
-  // 修改应用弹窗内容
+  // 修改业务组弹窗内容
   const updateBusiDetail = (busiGroups) => {
     return {
       operateTitle: t('update_busi.title'),
@@ -220,7 +234,7 @@ const OperationModal: React.FC<OperateionModalProps> = ({ operateType, setOperat
         return Promise.resolve();
       },
       isFormItem: false,
-      render() { },
+      render() {},
     }),
   };
   const { operateTitle, requestFunc, isFormItem, render } = operateDetail[`${operateType}Detail`](detailProp);
@@ -257,7 +271,7 @@ const OperationModal: React.FC<OperateionModalProps> = ({ operateType, setOperat
     });
   }
 
-  // 初始化展示所有应用
+  // 初始化展示所有业务组
   useEffect(() => {
     if (!filteredBusiGroups.length) {
       setFilteredBusiGroups(busiGroups);
@@ -325,44 +339,44 @@ const OperationModal: React.FC<OperateionModalProps> = ({ operateType, setOperat
 
 const Targets: React.FC = () => {
   const { t } = useTranslation('targets');
-  const commonState = useContext(CommonStateContext);
-  const [curBusiId, setCurBusiId] = useState<number>(commonState.curBusiId);
+  const { businessGroup, businessGroupOnChange } = useContext(CommonStateContext);
+  const [gids, setGids] = useState<string | undefined>(businessGroup.ids);
   const [operateType, setOperateType] = useState<OperateType>(OperateType.None);
   const [selectedRowKeys, setSelectedRowKeys] = useState<(string | number)[]>([]);
   const [selectedIdents, setSelectedIdents] = useState<string[]>([]);
   const [refreshFlag, setRefreshFlag] = useState(_.uniqueId('refreshFlag_'));
 
+  useEffect(() => {
+    setGids(businessGroup.ids);
+  }, [businessGroup.ids]);
+
   return (
     <PageLayout icon={<DatabaseOutlined />} title={t('title')}>
       <div className='object-manage-page-content'>
-        <BusinessGroup
-          curBusiId={curBusiId}
-          setCurBusiId={(id) => {
-            commonState.setCurBusiId(id);
-            setCurBusiId(id);
-          }}
+        <BusinessGroup2
+          showSelected={gids !== '0' && gids !== undefined}
           renderHeadExtra={() => {
             return (
               <div>
                 <div className='left-area-group-title'>{t('default_filter')}</div>
                 <div
                   className={classNames({
-                    'n9e-metric-views-list-content-item': true,
-                    active: curBusiId === 0,
+                    'n9e-biz-group-item': true,
+                    active: gids === '0',
                   })}
                   onClick={() => {
-                    setCurBusiId(0);
+                    setGids('0');
                   }}
                 >
                   {t('ungrouped_targets')}
                 </div>
                 <div
                   className={classNames({
-                    'n9e-metric-views-list-content-item': true,
-                    active: curBusiId === -1,
+                    'n9e-biz-group-item': true,
+                    active: gids === undefined,
                   })}
                   onClick={() => {
-                    setCurBusiId(-1);
+                    setGids(undefined);
                   }}
                 >
                   {t('all_targets')}
@@ -379,7 +393,7 @@ const Targets: React.FC = () => {
           }}
         >
           <List
-            curBusiId={curBusiId}
+            gids={gids}
             selectedIdents={selectedIdents}
             setSelectedIdents={setSelectedIdents}
             selectedRowKeys={selectedRowKeys}

@@ -29,8 +29,9 @@ import { CommonStateContext } from '@/App';
 const Modify = (props: any) => {
   const history = useHistory();
   const id = _.get(props, 'match.params.id');
-  const { curBusiId } = useContext(CommonStateContext);
-  const { t } = useTranslation();
+  const { businessGroup } = useContext(CommonStateContext);
+  const curBusiId = businessGroup.id!;
+  const { t } = useTranslation('common');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>({});
   const handleSubmit = (values: any) => {
@@ -73,7 +74,7 @@ const Modify = (props: any) => {
       }
     >
       <div style={{ padding: 10 }}>
-        <Card title={t('common:btn.modify')}>
+        <Card title={t('common:btn.edit')}>
           <Spin spinning={loading}>
             {data.title ? (
               <TplForm

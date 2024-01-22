@@ -31,12 +31,12 @@ function CateFormModal(props: ModalWrapProps & IProps) {
           if (action === 'post') {
             postRoles(values).then(() => {
               onOk();
-              message.success('common:success.add');
+              message.success(t('common:success.add'));
             });
           } else if (action === 'put') {
             putRoles({ ...initialValues, ...values }).then(() => {
               onOk({ ...initialValues, ...values });
-              message.success('common:success.edit');
+              message.success(t('common:success.edit'));
             });
           }
           destroy();
@@ -44,7 +44,17 @@ function CateFormModal(props: ModalWrapProps & IProps) {
       }}
     >
       <Form form={form} layout='vertical'>
-        <Form.Item label={t('common:table.name')} name='name' required initialValue={initialValues?.name}>
+        <Form.Item
+          label={t('common:table.name')}
+          name='name'
+          rules={[
+            {
+              required: true,
+            },
+          ]}
+          required
+          initialValue={initialValues?.name}
+        >
           <Input />
         </Form.Item>
         <Form.Item label={t('common:table.note')} name='note' initialValue={initialValues?.note}>

@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Resizable } from 're-resizable';
 import _ from 'lodash';
-import classNames from 'classnames';
-import { useHistory } from 'react-router-dom';
-import { Input } from 'antd';
-import { LeftOutlined, RightOutlined, SettingOutlined, SearchOutlined } from '@ant-design/icons';
+import { Link } from 'react-router-dom';
+import { Input, Tree } from 'antd';
+import { LeftOutlined, RightOutlined, SettingOutlined, SearchOutlined, DownOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { getBusiGroups } from '@/services/common';
 import { CommonStateContext } from '@/App';
+import { listToTree2, getCollapsedKeys } from './utils';
 import './style.less';
+
+export { listToTree2, getCollapsedKeys };
 
 interface IProps {
   curBusiId?: number;
@@ -17,17 +19,43 @@ interface IProps {
   renderHeadExtra?: () => React.ReactNode;
 }
 
+interface Node {
+  id: number;
+  title: string;
+  key: string | number;
+  children?: Node[];
+}
+
+export function getLocaleExpandedKeys() {
+  const val = localStorage.getItem('biz_group_expanded_keys');
+  try {
+    if (val) {
+      const parsed = JSON.parse(val);
+      if (_.isArray(parsed)) {
+        return parsed;
+      }
+      return [];
+    }
+    return [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function setLocaleExpandedKeys(nodes: string[]) {
+  localStorage.setItem('biz_group_expanded_keys', JSON.stringify(nodes));
+}
+
 export default function index(props: IProps) {
   const { t } = useTranslation();
-  const { title = t('business_group'), renderHeadExtra, curBusiId, setCurBusiId } = props;
-  const history = useHistory();
+  const { title = t('common:business_group'), renderHeadExtra, curBusiId, setCurBusiId } = props;
   const [collapse, setCollapse] = useState(localStorage.getItem('leftlist') === '1');
   const [width, setWidth] = useState(_.toNumber(localStorage.getItem('leftwidth') || 200));
   const { busiGroups } = useContext(CommonStateContext);
-  const [businessGroupData, setBusinessGroupData] = useState<{ id: number; name: string }[]>([]);
+  const [businessGroupData, setBusinessGroupData] = useState<Node[]>([]);
 
   useEffect(() => {
-    setBusinessGroupData(busiGroups);
+    setBusinessGroupData(listToTree2(busiGroups));
   }, [busiGroups]);
 
   return (
@@ -62,7 +90,11 @@ export default function index(props: IProps) {
           {renderHeadExtra && renderHeadExtra()}
           <div className='left-area-group-title'>
             {title}
-            {title === t('business_group') && <SettingOutlined onClick={() => history.push(`/busi-groups`)} />}
+            {title === t('common:business_group') && (
+              <Link to='/busi-groups' target='_blank'>
+                <SettingOutlined />
+              </Link>
+            )}
           </div>
           <Input
             className='left-area-group-search'
@@ -71,30 +103,35 @@ export default function index(props: IProps) {
               e.preventDefault();
               const value = e.currentTarget.value;
               getBusiGroups(value).then((res) => {
-                setBusinessGroupData(res.dat || []);
+                setBusinessGroupData(listToTree2(res.dat || []));
               });
             }}
           />
           <div className='radio-list'>
-            {_.map(businessGroupData, (item) => {
-              return (
-                <div
-                  className={classNames({
-                    'n9e-metric-views-list-content-item': true,
-                    active: item.id == curBusiId,
-                  })}
-                  key={item.id}
-                  onClick={() => {
-                    if (item.id !== curBusiId) {
-                      localStorage.setItem('curBusiId', _.toString(item.id));
-                      setCurBusiId && setCurBusiId(item.id, item);
-                    }
-                  }}
-                >
-                  <span className='name'>{item.name}</span>
-                </div>
-              );
-            })}
+            {!_.isEmpty(businessGroupData) && (
+              <Tree
+                rootClassName='business-group-tree'
+                showLine={{
+                  showLeafIcon: false,
+                }}
+                defaultExpandParent={false}
+                defaultExpandedKeys={getCollapsedKeys(businessGroupData, getLocaleExpandedKeys(), curBusiId)}
+                selectedKeys={curBusiId ? [curBusiId] : undefined}
+                blockNode
+                switcherIcon={<DownOutlined />}
+                onSelect={(_selectedKeys, e) => {
+                  const nodeId = e.node.id;
+                  if (nodeId !== curBusiId) {
+                    localStorage.setItem('curBusiId', _.toString(nodeId));
+                    setCurBusiId && setCurBusiId(nodeId, e.node);
+                  }
+                }}
+                onExpand={(expandedKeys: string[]) => {
+                  setLocaleExpandedKeys(expandedKeys);
+                }}
+                treeData={businessGroupData as Node[]}
+              />
+            )}
           </div>
         </div>
       </div>

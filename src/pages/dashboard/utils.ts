@@ -18,8 +18,9 @@ import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import { IRawTimeRange, parseRange } from '@/components/TimeRangePicker';
-import { IDashboard, IVariable } from './types';
-import { defaultValues } from './Editor/config';
+import { IDashboardConfig, IVariable } from './types';
+import { defaultValues, calcsOptions } from './Editor/config';
+import updateSchema from './updateSchema';
 
 export function JSONParse(str) {
   if (str) {
@@ -73,6 +74,16 @@ const grafanaBuiltinColors = [
   { color: '#8F3BB8', name: 'dark-purple' },
 ];
 
+function normalizeCalc(calc: string) {
+  if (calc === 'mean') {
+    return 'avg';
+  }
+  if (calcsOptions[calc]) {
+    return calc;
+  }
+  return 'lastNotNull';
+}
+
 function convertThresholdsGrafanaToN9E(config: any) {
   return {
     mode: config.thresholds?.mode, // mode 目前是不支持的
@@ -87,23 +98,43 @@ function convertThresholdsGrafanaToN9E(config: any) {
   };
 }
 
-function convertVariablesGrafanaToN9E(templates: any) {
-  return _.chain(templates.list)
+const varWithUnitMap = {
+  '${__interval}s': '${__interval}',
+  '${__interval_ms}ms': '${__interval}',
+  '${__rate_interval}s': '${__rate_interval}',
+  '${__range}s': '${__range}',
+  '${__range_s}s': '${__range_s}',
+  '${__range_ms}ms': '${__range_ms}',
+};
+
+function convertVariablesGrafanaToN9E(templates: any, __inputs: any[], data: any) {
+  const vars = _.chain(templates.list)
     .filter((item) => {
       // 3.0.0 版本只支持 query / custom / textbox / constant 类型的变量
-      return item.type === 'query' || item.type === 'custom' || item.type === 'textbox' || item.type === 'constant' || item.type === 'datasource';
+      return item.type === 'query' || item.type === 'custom' || item.type === 'textbox' || item.type === 'constant' || item.type === 'datasource' || item.type === 'interval';
     })
     .map((item) => {
       if (item.type === 'query') {
-        return {
+        let definition = item.definition || _.get(item, 'query') || _.get(item, 'query.query');
+        _.forEach(varWithUnitMap, (val, key) => {
+          definition = _.replace(definition, key, val);
+        });
+        const varObj: any = {
           type: 'query',
           name: item.name,
-          definition: item.definition || _.get(item, 'query.query'),
+          definition,
           allValue: item.allValue,
           allOption: item.includeAll,
           multi: item.multi,
           reg: item.regex,
+          hide: item.hide === 0 ? false : true,
         };
+        const datasource = convertDatasourceGrafanaToN9E(item);
+        varObj.datasource = {
+          cate: datasource.datasourceCate,
+          value: datasource.datasourceValue,
+        };
+        return varObj;
       } else if (item.type === 'custom') {
         return {
           type: 'custom',
@@ -112,27 +143,63 @@ function convertVariablesGrafanaToN9E(templates: any) {
           allValue: item.allValue,
           allOption: item.includeAll,
           multi: item.multi,
+          hide: item.hide === 0 ? false : true,
         };
       } else if (item.type === 'constant') {
         return {
           type: 'constant',
           name: item.name,
           definition: item.query,
+          hide: item.hide === 0 ? false : true,
         };
       } else if (item.type === 'datasource') {
         return {
           type: 'datasource',
           name: item.name,
           definition: item.query,
+          hide: item.hide === 0 ? false : true,
+        };
+      } else if (item.type === 'interval') {
+        return {
+          type: 'custom',
+          name: item.name,
+          definition: '1s,5s,1m,5m,1h,6h,1d',
+          allValue: item.allValue,
+          allOption: item.includeAll,
+          multi: item.multi,
+          hide: item.hide === 0 ? false : true,
         };
       }
       return {
         type: 'textbox',
         name: item.name,
         defaultValue: item.query,
+        hide: item.hide === 0 ? false : true,
       };
     })
     .value();
+  _.forEach(__inputs, (item) => {
+    if (item.type === 'datasource') {
+      vars.unshift({
+        type: 'datasource',
+        name: item.name,
+        definition: item.pluginId,
+      });
+    }
+  });
+  if (
+    !_.some(vars, { type: 'datasource' }) &&
+    _.some(data.panels, (panel) => {
+      return _.toLower(panel?.datasource?.type) !== 'prometheus';
+    })
+  ) {
+    vars.unshift({
+      type: 'datasource',
+      name: 'datasource',
+      definition: 'prometheus',
+    });
+  }
+  return vars;
 }
 
 function convertLinksGrafanaToN9E(links: any) {
@@ -197,7 +264,7 @@ function convertTimeseriesGrafanaToN9E(panel: any) {
     version: '3.0.0',
     drawStyle: panel.type === 'barchart' ? 'bars' : 'lines',
     lineInterpolation: lineInterpolation === 'smooth' ? 'smooth' : 'linear',
-    fillOpacity: fillOpacity ? fillOpacity / 100 : 0.5,
+    fillOpacity: fillOpacity ? fillOpacity / 100 : 0,
     stack: stack === 'normal' ? 'normal' : 'off',
   };
 }
@@ -205,7 +272,7 @@ function convertTimeseriesGrafanaToN9E(panel: any) {
 function convertPieGrafanaToN9E(panel: any) {
   return {
     version: '3.0.0',
-    calc: _.get(panel, 'options.reduceOptions.calcs[0]'),
+    calc: normalizeCalc(_.get(panel, 'options.reduceOptions.calcs[0]')),
     legengPosition: 'hidden',
   };
 }
@@ -214,7 +281,7 @@ function convertStatGrafanaToN9E(panel: any) {
   return {
     version: '3.0.0',
     textMode: 'value',
-    calc: _.get(panel, 'options.reduceOptions.calcs[0]'),
+    calc: normalizeCalc(_.get(panel, 'options.reduceOptions.calcs[0]')),
     colorMode: 'value',
   };
 }
@@ -223,7 +290,7 @@ function convertGaugeGrafanaToN9E(panel: any) {
   return {
     version: '3.0.0',
     textMode: 'value',
-    calc: _.get(panel, 'options.reduceOptions.calcs[0]'),
+    calc: normalizeCalc(_.get(panel, 'options.reduceOptions.calcs[0]')),
     colorMode: 'value',
   };
 }
@@ -231,7 +298,7 @@ function convertGaugeGrafanaToN9E(panel: any) {
 function convertBarGaugeGrafanaToN9E(panel: any) {
   return {
     version: '3.0.0',
-    calc: _.get(panel, 'options.reduceOptions.calcs[0]'),
+    calc: normalizeCalc(_.get(panel, 'options.reduceOptions.calcs[0]')),
   };
 }
 
@@ -239,6 +306,26 @@ function convertTextGrafanaToN9E(panel: any) {
   return {
     version: '3.0.0',
     content: _.get(panel, 'options.content'),
+  };
+}
+
+function convertDatasourceGrafanaToN9E(panel: any) {
+  const reg = /^\${[0-9a-zA-Z_]+}$/;
+  if (_.toLower(panel?.datasource?.type) === 'prometheus') {
+    return {
+      datasourceCate: 'prometheus',
+      datasourceValue: reg.test(panel.datasource.uid) ? panel.datasource.uid : '${datasource}',
+    };
+  }
+  if (typeof panel.datasource === 'string' && reg.test(panel.datasource)) {
+    return {
+      datasourceCate: 'prometheus',
+      datasourceValue: panel.datasource,
+    };
+  }
+  return {
+    datasourceCate: 'prometheus',
+    datasourceValue: '${datasource}',
   };
 }
 
@@ -266,7 +353,7 @@ function convertPanlesGrafanaToN9E(panels: any) {
       fn: convertGaugeGrafanaToN9E,
     },
     singlestat: {
-      type: 'stat',
+      type: 'gauge',
       fn: convertStatGrafanaToN9E,
     },
     stat: {
@@ -284,7 +371,7 @@ function convertPanlesGrafanaToN9E(panels: any) {
   };
   return _.chain(panels)
     .filter((item) => {
-      if (item.targets) {
+      if (item.targets && item.type !== 'row') {
         return _.every(item.targets, (subItem) => {
           return !!subItem.expr;
         });
@@ -326,7 +413,7 @@ function convertPanlesGrafanaToN9E(panels: any) {
           .map((item) => {
             return {
               refId: item.refId,
-              expr: _.replace(_.replace(item.expr, '$__rate_interval', '5m'), '$__interval', '5m'), // TODO: 目前不支持 $__rate_interval 暂时统一替换为 5m
+              expr: item.expr,
               legend: item.legendFormat,
             };
           })
@@ -335,25 +422,41 @@ function convertPanlesGrafanaToN9E(panels: any) {
         custom: chartsMap[item.type] ? chartsMap[item.type].fn(item) : {},
         maxPerRow: item.maxPerRow || 4,
         repeat: item.repeat,
-        datasourceCate: item.datasource?.type,
-        datasourceValue: item.datasource?.uid,
+        ...convertDatasourceGrafanaToN9E(item),
       };
     })
     .value();
 }
 
 export function convertDashboardGrafanaToN9E(data) {
+  data = updateSchema(data);
   const dashboard: {
     name: string;
-    configs: IDashboard;
+    configs: IDashboardConfig;
   } = {
     name: data.title,
     configs: {
       version: '3.0.0',
       links: convertLinksGrafanaToN9E(data.links),
-      var: convertVariablesGrafanaToN9E(data.templating) as IVariable[],
+      var: convertVariablesGrafanaToN9E(data.templating, data.__inputs, data) as IVariable[],
       panels: convertPanlesGrafanaToN9E(data.panels),
-    },
+    } as IDashboardConfig,
   };
   return dashboard;
+}
+
+/**
+ * 检测 Grafana Dashboard 版本
+ * 0: 不支持 < v7 // 2023-08-29 启用 grafana update schema 功能后，不再禁止 < v7
+ * 1: 兼容 >= v7 < v8
+ * 2: 支持 >= v8
+ */
+export function checkGrafanaDashboardVersion(data) {
+  // if (data.schemaVersion < 25) {
+  //   return 0;
+  // }
+  if (data.schemaVersion < 30) {
+    return 1;
+  }
+  return 2;
 }

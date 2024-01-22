@@ -8,10 +8,16 @@ import './locale';
 
 export function PromQLInputWithBuilder(props: CMExpressionInputProps & { datasourceValue: number }) {
   const { t } = useTranslation('promQLInput');
+  const inputProps: any = {...props};
+
+  if (inputProps.id) {
+    inputProps.key = inputProps.id;
+  }
+
   return (
     <Row gutter={8}>
       <Col flex='auto'>
-        <PromQLInput {...props} />
+        <PromQLInput {...inputProps} />
       </Col>
       <Col flex='74px'>
         <Button
@@ -29,6 +35,7 @@ export function PromQLInputWithBuilder(props: CMExpressionInputProps & { datasou
               },
             });
           }}
+          disabled={props.readonly}
         >
           {t('builder_btn')}
         </Button>

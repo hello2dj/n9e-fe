@@ -1,12 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { Alert, Form, Input, Switch, Button, Space, InputNumber, Row, Col, message } from 'antd';
 import { PlusCircleOutlined, MinusCircleOutlined, CloseOutlined } from '@ant-design/icons';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import _ from 'lodash';
+import { CommonStateContext } from '@/App';
 import { getWebhooks, putWebhooks } from './services';
 
 export default function Webhooks() {
   const { t } = useTranslation('notificationSettings');
+  const { isPlus } = useContext(CommonStateContext);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -35,38 +37,38 @@ export default function Webhooks() {
             {(fields, { add, remove }) => {
               return (
                 <div>
-                  {fields.map((field, idx) => (
-                    <div className='webhook-item' key={field.key}>
+                  {fields.map(({ key, name, ...restField }) => (
+                    <div className='webhook-item' key={key}>
                       <div style={{ marginBottom: 10 }}>
                         <Space align='baseline'>
                           {t('webhooks.enable')}
-                          <Form.Item {...field} name={[field.name, 'enable']} valuePropName='checked' noStyle>
+                          <Form.Item {...restField} name={[name, 'enable']} valuePropName='checked' noStyle>
                             <Switch />
                           </Form.Item>
                         </Space>
                       </div>
-                      <Form.Item {...field} label={t('webhooks.note')} name={[field.name, 'note']}>
+                      <Form.Item {...restField} label={t('webhooks.note')} name={[name, 'note']}>
                         <Input />
                       </Form.Item>
-                      <Form.Item {...field} label={t('webhooks.url')} name={[field.name, 'url']} rules={[{ required: true }]}>
+                      <Form.Item {...restField} label={t('webhooks.url')} name={[name, 'url']} rules={[{ required: true }]}>
                         <Input />
                       </Form.Item>
-                      <Form.Item {...field} label={t('webhooks.timeout')} name={[field.name, 'timeout']}>
-                        <InputNumber style={{ width: '100%' }} defaultValue={5} />
+                      <Form.Item {...restField} label={t('webhooks.timeout')} name={[name, 'timeout']} initialValue={5}>
+                        <InputNumber style={{ width: '100%' }} />
                       </Form.Item>
                       <Row gutter={10}>
                         <Col span={12}>
-                          <Form.Item {...field} label={t('webhooks.basic_auth_user')} name={[field.name, 'basic_auth_user']}>
+                          <Form.Item {...restField} label={t('webhooks.basic_auth_user')} name={[name, 'basic_auth_user']}>
                             <Input />
                           </Form.Item>
                         </Col>
                         <Col span={12}>
-                          <Form.Item {...field} label={t('webhooks.basic_auth_password')} name={[field.name, 'basic_auth_pass']}>
+                          <Form.Item {...restField} label={t('webhooks.basic_auth_password')} name={[name, 'basic_auth_pass']}>
                             <Input.Password />
                           </Form.Item>
                         </Col>
                       </Row>
-                      <Form.List {...field} name={[field.name, 'headers']}>
+                      <Form.List {...restField} name={[name, 'headers']}>
                         {(headers, { add, remove }) => {
                           return (
                             <div>
@@ -123,7 +125,7 @@ export default function Webhooks() {
                       </Form.List>
                       <Space align='baseline'>
                         {t('webhooks.skip_verify')}
-                        <Form.Item {...field} name={[field.name, 'skip_verify']} noStyle>
+                        <Form.Item {...restField} name={[name, 'skip_verify']} noStyle valuePropName='checked'>
                           <Switch />
                         </Form.Item>
                       </Space>
@@ -131,7 +133,7 @@ export default function Webhooks() {
                         <div className='webhook-item-remove'>
                           <CloseOutlined
                             onClick={() => {
-                              remove(field.name);
+                              remove(name);
                             }}
                           />
                         </div>
@@ -179,6 +181,23 @@ export default function Webhooks() {
           </div>
         </Form>
       </div>
+      {/* {!isPlus && (
+        <div className='webhooks-doc'>
+          <Alert
+            type='info'
+            message={
+              <Trans
+                ns='notificationSettings'
+                i18nKey='webhooks.help'
+                components={{
+                  a: <a href='https://console.flashcat.cloud/?from=n9e' target='_blank' />,
+                  br: <br />,
+                }}
+              />
+            }
+          />
+        </div>
+      )} */}
     </div>
   );
 }

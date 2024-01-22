@@ -75,6 +75,8 @@ function index(props: IProps) {
       if (_.isArray(initialValuesCopy.custom.colorRange)) {
         _.set(initialValuesCopy, 'custom.colorRange', _.join(initialValuesCopy.custom.colorRange, ','));
         setInitialValues(initialValuesCopy);
+      } else {
+        setInitialValues(initialValuesCopy);
       }
     } else {
       setInitialValues(initialValuesCopy);
@@ -106,7 +108,7 @@ function index(props: IProps) {
               {_.map(visualizations, (item) => {
                 return (
                   <Select.Option value={item.type} key={item.type}>
-                    {i18n.language === 'en_US' ? item.type : item.name}
+                    {t(`visualizations.${item.type}`)}
                   </Select.Option>
                 );
               })}

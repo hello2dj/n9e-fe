@@ -8,6 +8,10 @@ const en_US = {
   refresh_tip: 'Refresh interval less than step({{num}}s) will not update data',
   refresh_btn: 'Refresh',
   share_btn: 'Share',
+  export_btn: 'Export (CSV)',
+  clear_cache_btn: 'Clear cache',
+  clear_cache_btn_tip: 'Clear the table column width cache, take effect after refreshing the page',
+  inspect_btn: 'Inspect',
   public: {
     name: 'Public',
     0: {
@@ -29,7 +33,11 @@ const en_US = {
     import: 'Import dashboard JSON',
     label: 'Dashboard JSON',
     import_grafana: 'Import Grafana dashboard JSON',
-    import_grafana_tip: 'Currently only support import dashboard config of v8+ version, imported panels only support the chart types and features that n9e currently supports',
+    import_grafana_tip: 'Imported panels only support the chart types and features that n9e currently supports, <a>feedback</a>',
+    import_grafana_tip_version_error: 'Import of dashboard config less than v7 version is not supported',
+    import_grafana_tip_version_warning: 'The imported dashboard config version is less than v8, some panels may not be displayed properly, do you want to continue importing?',
+    continueToImport: 'Continue to import',
+    noSelected: 'Please select any dashboard',
   },
   link: {
     title: 'Links',
@@ -71,6 +79,8 @@ const en_US = {
     type: 'Type',
     hide: 'Hide',
     definition: 'Definition',
+    definition_msg1: 'Please enter variable definition',
+    definition_msg2: 'Variable definition must be valid JSON',
     reg: 'Regex',
     reg_tip: 'Optional, can filter options or extract values by regex',
     multi: 'Multi select',
@@ -78,6 +88,7 @@ const en_US = {
     allValue: 'Custom all value',
     textbox: {
       defaultValue: 'Default value',
+      defaultValue_tip: 'Optional, only as default on initial load',
     },
     custom: {
       definition: 'Custom value',
@@ -89,6 +100,8 @@ const en_US = {
     datasource: {
       definition: 'Datasource type',
       defaultValue: 'Default value',
+      regex: 'Datasource name filter',
+      regex_tip: 'Optional, can filter options or extract values by regex',
     },
   },
   row: {
@@ -119,6 +132,12 @@ const en_US = {
         isNewBlank: 'Open in new tab',
       },
       description: 'Description',
+      repeatOptions: {
+        title: 'Repeat options',
+        byVariable: 'Repeat by variable',
+        byVariableTip: 'Repeat the panel for each value of the variable',
+        maxPerRow: 'Max per row',
+      },
     },
     options: {
       legend: {
@@ -135,6 +154,11 @@ const en_US = {
         sum: 'Sum',
         last: 'Last',
         columns: 'Columns',
+        behaviour: {
+          label: 'Behavior triggered by click',
+          showItem: 'Show item',
+          hideItem: 'Hide item',
+        },
       },
       thresholds: {
         title: 'Thresholds',
@@ -153,10 +177,12 @@ const en_US = {
           <1>Null: match value is null or undefined or no data</1>
         `,
         type_map: {
-          special: 'Fixed',
+          special: 'Number',
+          textValue: 'Text',
           range: 'Range',
           specialValue: 'Special',
         },
+        value_placeholder: 'Match value',
         text: 'Text',
         text_placeholder: 'Optional',
         color: 'Color',
@@ -173,11 +199,22 @@ const en_US = {
       decimals: 'Decimals',
     },
     overrides: {
-      matcher: 'Matcher',
+      matcher: {
+        id: 'Matcher',
+        byFrameRefID: {
+          option: 'By query condition name',
+          name: 'Query condition name',
+        },
+        byName: {
+          option: 'By field name',
+          name: 'Field name',
+        },
+      },
     },
     custom: {
       title: 'Graph styles',
       calc: 'Calc',
+      calc_tip: 'Time series data requires value calculation for all time point data. Non-time series data ignores this setting',
       maxValue: 'Max',
       baseColor: 'Base color',
       serieWidth: 'Serie width',
@@ -189,6 +226,8 @@ const en_US = {
       background: 'Background',
       colorMode: 'Color mode',
       valueField: 'Value field',
+      valueField_tip: 'Value is a reserved keyword, used as the field name after time series data value calculation',
+      valueField_tip2: 'You need to select a column whose value is a numeric type',
       colSpan: 'Col span',
       textSize: {
         title: 'Title textsize',
@@ -198,6 +237,14 @@ const en_US = {
       reverseColorOrder: 'Reverse color order', // hexbin
       colorDomainAuto: 'Color domain auto', // hexbin
       colorDomainAuto_tip: 'By default, the min max value is automatically taken from the series', // hexbin
+      fontBackground: 'Font background', // hexbin
+      detailName: 'Link name',
+      detailUrl: 'Link addr',
+      stat: {
+        graphMode: 'Graph mode',
+        none: 'None',
+        area: 'Mini graph',
+      },
       pie: {
         legengPosition: 'Legend position',
         max: 'Max',
@@ -218,6 +265,11 @@ const en_US = {
         aggrDimension: 'Aggr dimension',
         sortColumn: 'Sort column',
         sortOrder: 'Sort order',
+        link: {
+          mode: 'Link mode',
+          cellLink: 'Cell link',
+          appendLinkColumn: 'Append link column',
+        },
       },
       text: {
         textColor: 'TextColor',
@@ -255,10 +307,34 @@ const en_US = {
         stack: 'Stack',
         stack_noraml: 'Normal',
         stack_off: 'Off',
+        yAxis: {
+          title: 'Y-Axis settings',
+          rightYAxis: {
+            label: 'Right Y-Axis',
+            noraml: 'On',
+            off: 'Off',
+          },
+        },
       },
       iframe: {
         src: 'Src',
       },
+      heatmap: {
+        xAxisField: 'X-Axis',
+        yAxisField: 'Y-Axis',
+        valueField: 'Value field',
+      },
+      barchart: {
+        xAxisField: 'X-Axis',
+        yAxisField: 'Y-Axis',
+        colorField: 'Color by field',
+        barMaxWidth: 'Bar max width',
+      },
+    },
+    inspect: {
+      title: 'Inspect',
+      query: 'Query',
+      json: 'Panel JSON',
     },
   },
   export: {
@@ -269,14 +345,59 @@ const en_US = {
     transform: 'Transform',
     datasource_placeholder: 'Select datasource',
     datasource_msg: 'Please select datasource',
-    prometheus: {
-      time: 'Time',
-      time_tip: 'Default is the global time range of the dashboard',
-      step_tip: 'Default is the global step of the dashboard',
-    },
+    time: 'Time',
+    time_tip: 'Default is the global time range of the dashboard',
   },
   detail: {
     datasource_empty: 'Please configure the data source first',
+    invalidTimeRange: 'Invalid __from and __to values',
+    invalidDatasource: 'Invalid datasource',
+    fullscreen: {
+      notification: {
+        esc: 'Press ESC to exit full screen mode',
+        theme: 'Theme',
+      },
+    },
+  },
+  settings: {
+    graphTooltip: {
+      label: 'Graph tooltip',
+      tip: 'Control tooltip behavior for all panels',
+      default: 'Default',
+      sharedCrosshair: 'Shared crosshair',
+      sharedTooltip: 'Shared tooltip',
+    },
+    graphZoom: {
+      label: 'Graph zoom',
+      tip: 'Control zoom behavior for all panels',
+      default: 'Default',
+      updateTimeRange: 'Update time range',
+    },
+  },
+  visualizations: {
+    timeseries: 'Time Series',
+    barchart: 'Bar Chart',
+    stat: 'Stat',
+    table: 'Table',
+    pie: 'Pie Chart',
+    hexbin: 'Hexmap',
+    barGauge: 'Bar Gauge',
+    text: 'Text',
+    gauge: 'Gauge',
+    heatmap: 'Heatmap',
+    iframe: 'Iframe',
+    row: 'Row',
+  },
+  calcs: {
+    lastNotNull: 'Last not null value',
+    last: 'Last value',
+    firstNotNull: 'First not null value',
+    first: 'First value',
+    min: 'Min',
+    max: 'Max',
+    avg: 'Avg',
+    sum: 'Sum',
+    count: 'Count',
   },
 };
 export default en_US;

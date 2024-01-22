@@ -14,6 +14,7 @@
  * limitations under the License.
  *
  */
+// @ts-nocheck
 import { transition, min, select, event } from 'd3';
 import { hexbin as d3Hexbin } from 'd3-hexbin';
 import _ from 'lodash';
@@ -46,6 +47,15 @@ function getHexbinHeight(mapRows, hexRadius) {
   }
   return count * hexRadius;
 }
+function getName(record: any, valueField?: string) {
+  if (valueField !== 'Value') {
+    return valueField;
+  }
+  return record?.name;
+}
+function getValue(record: any, valueField?: string) {
+  return _.get(record, valueField !== 'Value' ? ['metric', valueField] : 'value');
+}
 
 const div = select('body')
   .append(function () {
@@ -54,9 +64,15 @@ const div = select('body')
   .attr('class', 'hexbin-tooltip')
   .style('opacity', 0);
 
-function renderHoneyComb(svgGroup, data, { width, height, fontAutoScale = true, fontSize = 12, themeMode, textMode }) {
+function renderHoneyComb(
+  svgGroup,
+  data,
+  { width, height, fontAutoScale = true, fontSize = 12, themeMode, textMode, detailUrl, fontBackground = false, valueField },
+  detailFormatter,
+) {
   const t = transition().duration(750);
   const { columns: mapColumns, rows: mapRows } = getMapColumnsAndRows(width, height, data.length);
+  console.log(mapColumns, mapRows);
   const hexRadius = Math.floor(min([width / ((mapColumns + 0.5) * Math.sqrt(3)), height / ((mapRows + 1 / 3) * 1.5), width / 7]));
   const hexbinWidth = Math.sin((60 * Math.PI) / 180) * hexRadius * 2;
   const points = getPlaceHolderElems(mapRows, mapColumns, data.length, hexRadius);
@@ -69,22 +85,25 @@ function renderHoneyComb(svgGroup, data, { width, height, fontAutoScale = true, 
   const translateX = adjustedOffSetX;
   const translateY = adjustedOffSetY;
   const hexbinPoints = hexbin(points);
-  const textAreaHeight = hexRadius;
+  const textAreaHeight = hexRadius * 0.85;
   const textAreaWidth = hexbinWidth * 0.9;
   let activeLabelFontSize = fontSize;
   let activeValueFontSize = fontSize;
   let isShowEllipses = false;
   let numOfChars = 0;
+  const fillColor = fontBackground ? '#fff' : '#000';
 
   if (fontAutoScale) {
     let maxLabel = '';
     let maxValue = '';
     for (let i = 0; i < data.length; i++) {
-      if (data[i].name.length > maxLabel.length) {
-        maxLabel = data[i].name;
+      const name = getName(data[i], valueField);
+      const value = getValue(data[i], valueField);
+      if (name?.length > maxLabel.length) {
+        maxLabel = name;
       }
-      if (_.toString(data[i].value).length > maxValue.length) {
-        maxValue = _.toString(data[i].value);
+      if (_.toString(value).length > maxValue.length) {
+        maxValue = _.toString(value);
       }
     }
     activeLabelFontSize = computeTextFontSize(maxLabel, 2, textAreaWidth, textAreaHeight);
@@ -111,9 +130,6 @@ function renderHoneyComb(svgGroup, data, { width, height, fontAutoScale = true, 
     // }
   }
 
-  const valueWithLabelTextAlignment = textAreaHeight / 2 / 2;
-  const labelWithValueTextAlignment = -(textAreaHeight / 2 / 2);
-
   svgGroup.attr('width', width).attr('height', height).attr('transform', `translate(${translateX},${translateY})`);
 
   const hexagons = svgGroup.selectAll('.hexagon').data(hexbinPoints);
@@ -129,7 +145,7 @@ function renderHoneyComb(svgGroup, data, { width, height, fontAutoScale = true, 
     .on('mousemove', function (_d, i) {
       const metricObj = data[i]?.metric;
       const metricName = metricObj?.__name__ || 'value';
-      const metricNameRow = `<div><strong>${metricName}: ${data[i]?.value}</strong></div>`;
+      const metricNameRow = `<div><strong>${metricName}: ${getValue(data[i], valueField)}</strong></div>`;
       const labelsRows = _.map(_.omit(metricObj, '__name__'), (val, key) => {
         return `<div>${key}: ${val}</div>`;
       });
@@ -148,6 +164,11 @@ function renderHoneyComb(svgGroup, data, { width, height, fontAutoScale = true, 
       const curPath = svgGroup.selectAll('.hexagon').nodes()[i];
       curPath.setAttribute('stroke', data[i]?.color);
     })
+    .on('mousedown', (_d, i) => {
+      if (detailUrl) {
+        window.open(detailFormatter(data[i]), '_blank');
+      }
+    })
     .attr('stroke', (_d, i) => {
       return data[i]?.color;
     })
@@ -156,10 +177,10 @@ function renderHoneyComb(svgGroup, data, { width, height, fontAutoScale = true, 
       return data[i]?.color;
     })
     .style('fill-opacity', 1)
+    .transition(t)
     .attr('d', function (d) {
       return 'M' + d.x + ',' + d.y + hexbin.hexagon([hexRadius - 3]);
     });
-  // .transition(t);
 
   if (textMode === 'valueAndName' || textMode === 'name') {
     // 指标名
@@ -170,24 +191,47 @@ function renderHoneyComb(svgGroup, data, { width, height, fontAutoScale = true, 
         return d.x;
       })
       .attr('y', function (d) {
-        return d.y + (textMode === 'valueAndName' ? labelWithValueTextAlignment : 0);
+        return d.y - (textMode === 'valueAndName' ? hexRadius * 0.1 : 0);
       })
       .text(function (_d, i) {
-        let name = data[i]?.name;
-        if (isShowEllipses) {
+        let name = getName(data[i], valueField);
+        if (name && isShowEllipses) {
           name = name.substring(0, numOfChars) + '...';
           return name;
         }
         return name;
       })
       .attr('text-anchor', 'middle')
-      .attr('alignment-baseline', 'central')
+      .attr('alignment-baseline', textMode === 'valueAndName' ? 'baseline' : 'central')
       .style('pointer-events', 'none')
       .style('font-size', activeLabelFontSize + 'px')
-      .style('fill', 'black')
+      .style('fill', fillColor)
       .each(function (this, d) {
         d.bbox = this.getBBox();
       });
+
+    if (fontBackground) {
+      hexagons
+        .enter()
+        .insert('rect', 'text')
+        .attr('x', function (d) {
+          return d.bbox.x - 4;
+        })
+        .attr('y', function (d) {
+          return d.bbox.y;
+        })
+        .attr('rx', 2)
+        .attr('ry', 2)
+        .attr('width', function (d) {
+          return d.bbox.width + 8;
+        })
+        .attr('height', function (d) {
+          return d.bbox.height;
+        })
+        .attr('fill-opacity', '0.2')
+        .style('fill', '#000')
+        .style('pointer-events', 'none');
+    }
   }
 
   if (textMode === 'valueAndName' || textMode === 'value') {
@@ -199,34 +243,65 @@ function renderHoneyComb(svgGroup, data, { width, height, fontAutoScale = true, 
         return d.x;
       })
       .attr('y', function (d) {
-        return d.y + (textMode === 'valueAndName' ? valueWithLabelTextAlignment : 0);
+        return d.y + (textMode === 'valueAndName' ? hexRadius * 0.1 : 0);
       })
       .text(function (_d, i) {
-        const value = data[i]?.value;
+        const value = getValue(data[i], valueField);
         return value;
       })
       .attr('text-anchor', 'middle')
-      .attr('alignment-baseline', 'central')
+      .attr('alignment-baseline', textMode === 'valueAndName' ? 'hanging' : 'central')
       .style('font-size', activeValueFontSize + 'px')
-      .style('fill', 'black')
+      .style('fill', fillColor)
       .style('pointer-events', 'none')
       .each(function (this, d) {
         d.bbox = this.getBBox();
       });
+
+    if (fontBackground) {
+      hexagons
+        .enter()
+        .insert('rect', 'text')
+        .attr('x', function (d) {
+          return d.bbox.x - 4;
+        })
+        .attr('y', function (d) {
+          return d.bbox.y + 4;
+        })
+        .attr('rx', 2)
+        .attr('ry', 2)
+        .attr('width', function (d) {
+          return d.bbox.width + 8;
+        })
+        .attr('height', function (d) {
+          return d.bbox.height - 8;
+        })
+        .attr('fill-opacity', '0.2')
+        .style('fill', '#000')
+        .style('pointer-events', 'none');
+    }
   }
 }
 
-export function renderFn(data, { width, height, parentGroupEl, themeMode, textMode }) {
+export function renderFn(data, { width, height, parentGroupEl, themeMode, textMode, detailUrl, fontBackground, valueField }, detailFormatter) {
   const parentGroup = select(parentGroupEl).attr('width', width).attr('height', height);
   const countPerRow = bestFitElemCountPerRow(1, width, height);
   const unitWidth = Math.floor(width / countPerRow);
   const rowCount = Math.ceil(1 / countPerRow);
   const unitHeight = height / rowCount;
 
-  renderHoneyComb(parentGroup, data, {
-    width: unitWidth,
-    height: unitHeight,
-    themeMode,
-    textMode,
-  });
+  renderHoneyComb(
+    parentGroup,
+    data,
+    {
+      width: unitWidth,
+      height: unitHeight,
+      themeMode,
+      textMode,
+      detailUrl,
+      fontBackground,
+      valueField,
+    },
+    detailFormatter,
+  );
 }

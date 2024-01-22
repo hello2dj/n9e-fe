@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-import React, { useRef, useState, useContext, useEffect } from 'react';
+import React, { useRef, useContext, useEffect } from 'react';
 import _ from 'lodash';
 import semver from 'semver';
 import { v4 as uuidv4 } from 'uuid';
@@ -35,14 +35,13 @@ import {
   updatePanelsWithNewPanel,
   updatePanelsInsertNewPanel,
   panelsMergeToConfigs,
-  updatePanelsInsertNewPanelToRow,
   getRowCollapsedPanels,
   getRowUnCollapsedPanels,
   processRepeats,
 } from './utils';
 import Renderer from '../Renderer/Renderer/index';
 import Row from './Row';
-import Editor from '../Editor';
+import EditorModal from './EditorModal';
 import './style.less';
 
 interface IProps {
@@ -50,10 +49,11 @@ interface IProps {
   editable: boolean;
   dashboard: Dashboard;
   range: IRawTimeRange;
+  setRange: (range: IRawTimeRange) => void;
   variableConfig: any;
   panels: any[];
   isPreview: boolean;
-  setPanels: (panels: any[]) => void;
+  setPanels: React.Dispatch<React.SetStateAction<any[]>>;
   onShareClick: (panel: any) => void;
   onUpdated: (res: any) => void;
 }
@@ -65,6 +65,8 @@ function index(props: IProps) {
   const location = useLocation();
   const { themeMode } = querystring.parse(location.search);
   const { editable, dashboard, range, variableConfig, panels, isPreview, setPanels, onShareClick, onUpdated } = props;
+  const roles = _.get(profile, 'roles', []);
+  const isAuthorized = !_.some(roles, (item) => item === 'Guest') && !isPreview;
   const layoutInitialized = useRef(false);
   const allowUpdateDashboardConfigs = useRef(false);
   const reactGridLayoutDefaultProps = {
@@ -74,8 +76,6 @@ function index(props: IProps) {
     draggableHandle: '.dashboards-panels-item-drag-handle',
   };
   const updateDashboardConfigs = (dashboardId, options) => {
-    const roles = _.get(profile, 'roles', []);
-    const isAuthorized = !_.some(roles, (item) => item === 'Guest') && !isPreview;
     if (!editable) {
       message.warning('仪表盘已经被别人修改，为避免相互覆盖，请刷新仪表盘查看最新配置和数据');
     }
@@ -84,19 +84,14 @@ function index(props: IProps) {
     }
     return Promise.reject();
   };
-  const [editorData, setEditorData] = useState({
-    mode: 'add',
-    visible: false,
-    id: '',
-    initialValues: {} as any,
-  });
+  const editorRef = useRef<any>(null);
 
   useEffect(() => {
     setPanels(processRepeats(panels, variableConfig));
   }, []);
 
   return (
-    <div className='dashboards-panels scroll-container'>
+    <div className='dashboards-panels'>
       <ReactGridLayout
         layout={buildLayout(panels)}
         onLayoutChange={(layout) => {
@@ -145,23 +140,26 @@ function index(props: IProps) {
               {item.type !== 'row' ? (
                 semver.valid(item.version) ? (
                   <Renderer
-                    isPreview={isPreview}
+                    isPreview={!isAuthorized}
                     themeMode={themeMode as 'dark'}
                     dashboardId={_.toString(props.dashboardId)}
                     id={item.id}
                     time={range}
+                    setRange={props.setRange}
                     values={item}
                     variableConfig={variableConfig}
                     onCloneClick={() => {
-                      const newPanels = updatePanelsInsertNewPanel(panels, {
-                        ...item,
-                        id: uuidv4(),
-                        layout: {
-                          ...item.layout,
-                          i: uuidv4(),
-                        },
+                      setPanels((panels) => {
+                        return updatePanelsInsertNewPanel(panels, {
+                          ...item,
+                          id: uuidv4(),
+                          layout: {
+                            ...item.layout,
+                            i: uuidv4(),
+                          },
+                        });
                       });
-                      setPanels(newPanels);
+
                       // 克隆面板必然会触发 layoutChange，更新 dashboard 放到 onLayoutChange 里面处理
                       allowUpdateDashboardConfigs.current = true;
                     }}
@@ -169,7 +167,7 @@ function index(props: IProps) {
                       onShareClick(item);
                     }}
                     onEditClick={() => {
-                      setEditorData({
+                      editorRef.current?.setEditorData({
                         mode: 'edit',
                         visible: true,
                         id: item.id,
@@ -183,13 +181,15 @@ function index(props: IProps) {
                       Modal.confirm({
                         title: `是否删除图表：${item.name}`,
                         onOk: async () => {
-                          const newPanels = _.filter(panels, (panel) => panel.id !== item.id);
-                          allowUpdateDashboardConfigs.current = true;
-                          setPanels(newPanels);
-                          updateDashboardConfigs(dashboard.id, {
-                            configs: panelsMergeToConfigs(dashboard.configs, newPanels),
-                          }).then((res) => {
-                            onUpdated(res);
+                          setPanels((panels) => {
+                            const newPanels = _.filter(panels, (panel) => panel.id !== item.id);
+                            allowUpdateDashboardConfigs.current = true;
+                            updateDashboardConfigs(dashboard.id, {
+                              configs: panelsMergeToConfigs(dashboard.configs, newPanels),
+                            }).then((res) => {
+                              onUpdated(res);
+                            });
+                            return newPanels;
                           });
                         },
                       });
@@ -218,6 +218,7 @@ function index(props: IProps) {
                 )
               ) : (
                 <Row
+                  isPreview={!isAuthorized}
                   name={item.name}
                   row={item}
                   onToggle={() => {
@@ -230,7 +231,7 @@ function index(props: IProps) {
                     });
                   }}
                   onAddClick={() => {
-                    setEditorData({
+                    editorRef.current?.setEditorData({
                       mode: 'add',
                       visible: true,
                       id: item.id,
@@ -278,29 +279,17 @@ function index(props: IProps) {
           );
         })}
       </ReactGridLayout>
-      <Editor
-        mode={editorData.mode}
-        visible={editorData.visible}
-        setVisible={(visible) => {
-          setEditorData({
-            ...editorData,
-            visible,
-          });
-        }}
-        variableConfigWithOptions={variableConfig}
-        id={editorData.id}
-        dashboardId={_.toString(props.dashboardId)}
-        time={range}
-        initialValues={editorData.initialValues}
-        onOK={(values, mode) => {
-          const newPanels = mode === 'edit' ? updatePanelsWithNewPanel(panels, values) : updatePanelsInsertNewPanelToRow(panels, editorData.id, values);
-          setPanels(newPanels);
-          updateDashboardConfigs(dashboard.id, {
-            configs: panelsMergeToConfigs(dashboard.configs, newPanels),
-          }).then((res) => {
-            onUpdated(res);
-          });
-        }}
+
+      <EditorModal
+        ref={editorRef}
+        dashboardId={props.dashboardId}
+        variableConfig={variableConfig}
+        range={range}
+        dashboard={dashboard}
+        panels={panels}
+        setPanels={setPanels}
+        updateDashboardConfigs={updateDashboardConfigs}
+        onUpdated={onUpdated}
       />
     </div>
   );

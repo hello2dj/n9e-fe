@@ -17,13 +17,17 @@
 import React, { useState, useEffect, useCallback, useContext } from 'react';
 import moment from 'moment';
 import _ from 'lodash';
+import { debounce, join } from 'lodash';
 import { Form, Input, InputNumber, Radio, Select, Row, Col, TimePicker, Checkbox, Tag, message, Space, Switch, Tooltip, Modal, Button } from 'antd';
 import { QuestionCircleFilled, MinusCircleOutlined, PlusCircleOutlined, CaretDownOutlined, PlusOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { getTeamInfoList, getNotifiesList } from '@/services/manage';
 import DatasourceValueSelect from '@/pages/alertRules/Form/components/DatasourceValueSelect';
-import { debounce, join } from 'lodash';
 import { CommonStateContext } from '@/App';
+import { defaultValues } from '../Form/constants';
+
+// @ts-ignore
+import ServiceCalendarSelect from 'plus:/pages/ServiceCalendar/ServiceCalendarSelect';
 
 const { Option } = Select;
 const layout = {
@@ -37,87 +41,70 @@ const layout = {
 
 const fields = [
   {
-    id: 2,
     field: 'datasource_ids',
     name: '数据源',
   },
   {
-    id: 3,
     field: 'severity',
     name: '级别',
   },
   {
-    id: 5,
     field: 'prom_eval_interval',
     name: '执行频率',
   },
   {
-    id: 6,
     field: 'prom_for_duration',
     name: '持续时长',
   },
   {
-    id: 4,
     field: 'disabled',
     name: '启用',
   },
   {
-    id: 13,
     field: 'effective_time',
     name: '生效时间',
   },
   {
-    id: 14,
     field: 'enable_in_bg',
-    name: '仅在本应用生效',
+    name: '仅在本业务组生效',
   },
   {
-    id: 12,
     field: 'append_tags',
     name: '附加标签',
   },
   {
-    id: 7,
     field: 'notify_channels',
     name: '通知媒介',
   },
   {
-    id: 8,
     field: 'notify_groups',
     name: '告警接收组',
   },
   {
-    id: 9,
     field: 'notify_recovered',
     name: '启用恢复通知',
   },
   {
-    id: 10,
     field: 'notify_repeat_step',
     name: '重复发送频率',
   },
   {
-    id: 15,
     field: 'recover_duration',
     name: '留观时长',
   },
   {
-    id: 16,
     field: 'notify_max_number',
     name: '最大发送次数',
   },
   {
-    id: 11,
     field: 'callbacks',
     name: '回调地址',
   },
   {
-    id: 0,
     field: 'note',
     name: '备注',
   },
   {
-    id: 1,
     field: 'runbook_url',
     name: '预案链接',
   },
@@ -140,7 +127,7 @@ interface Props {
 const editModal: React.FC<Props> = ({ isModalVisible, editModalFinish }) => {
   const { t, i18n } = useTranslation('alertRules');
   const [form] = Form.useForm();
-  const { datasourceList } = useContext(CommonStateContext);
+  const { datasourceList, isPlus } = useContext(CommonStateContext);
   const [contactList, setInitContactList] = useState([]);
   const [notifyGroups, setNotifyGroups] = useState([]);
   const [field, setField] = useState<string>('datasource_ids');
@@ -151,7 +138,7 @@ const editModal: React.FC<Props> = ({ isModalVisible, editModalFinish }) => {
     getNotifyChannel();
     getGroups('');
 
-    return () => { };
+    return () => {};
   }, []);
 
   // 渲染标签
@@ -269,7 +256,7 @@ const editModal: React.FC<Props> = ({ isModalVisible, editModalFinish }) => {
         if (data[key] === undefined) {
           data[key] = '';
         }
-        if (Array.isArray(data[key]) && key !== 'datasource_ids') {
+        if (Array.isArray(data[key]) && key !== 'datasource_ids' && key !== 'service_cal_ids') {
           data[key] = data[key].join(' ');
         }
       });
@@ -297,22 +284,16 @@ const editModal: React.FC<Props> = ({ isModalVisible, editModalFinish }) => {
         }}
       >
         <Form
-          {...layout}
+          layout='vertical'
           form={form}
           className='strategy-form'
-          layout={refresh ? 'horizontal' : 'horizontal'}
+          // layout={refresh ? 'horizontal' : 'horizontal'}
           initialValues={{
             prom_eval_interval: 15,
             disabled: 0, // 0:立即启用 1:禁用
             enable_status: true, // true:立即启用 false:禁用
             notify_recovered: 1, // 1:启用
-            effective_time: [
-              {
-                enable_stime: moment('00:00', 'HH:mm'),
-                enable_etime: moment('23:59', 'HH:mm'),
-                enable_days_of_week: ['1', '2', '3', '4', '5', '6', '0'],
-              },
-            ],
+            effective_time: defaultValues.effective_time,
             datasource_ids: [],
             field: 'datasource_ids',
           }}
@@ -327,11 +308,19 @@ const editModal: React.FC<Props> = ({ isModalVisible, editModalFinish }) => {
             ]}
           >
             <Select suffixIcon={<CaretDownOutlined />} style={{ width: '100%' }} onChange={fieldChange}>
-              {fields.map((item) => (
-                <Option key={item.id} value={item.field}>
-                  {t(`batch.update.options.${item.field}`)}
-                </Option>
-              ))}
+              {_.map(
+                isPlus
+                  ? _.concat(fields, {
+                      field: 'service_cal_ids',
+                      name: '服务日历',
+                    })
+                  : fields,
+                (item) => (
+                  <Option key={item.field} value={item.field}>
+                    {t(`batch.update.options.${item.field}`)}
+                  </Option>
+                ),
+              )}
             </Select>
           </Form.Item>
           {(() => {
@@ -352,7 +341,6 @@ const editModal: React.FC<Props> = ({ isModalVisible, editModalFinish }) => {
                     </Form.Item>
                   </>
                 );
-
               case 'datasource_ids':
                 return (
                   <>
@@ -669,6 +657,14 @@ const editModal: React.FC<Props> = ({ isModalVisible, editModalFinish }) => {
                           </>
                         )}
                       </Form.List>
+                    </Form.Item>
+                  </>
+                );
+              case 'service_cal_ids':
+                return (
+                  <>
+                    <Form.Item label={changetoText}>
+                      <ServiceCalendarSelect name='service_cal_ids' showLabel={false} />
                     </Form.Item>
                   </>
                 );

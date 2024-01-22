@@ -16,42 +16,59 @@
  */
 
 import React, { useContext } from 'react';
-import { Form, Row, Col, Select } from 'antd';
+import { Form, Row, Col } from 'antd';
 import { useTranslation } from 'react-i18next';
 import _ from 'lodash';
 import { CommonStateContext } from '@/App';
-import { getAuthorizedDatasourceCates } from '@/components/AdvancedWrap';
 import DatasourceValueSelect from '@/pages/alertRules/Form/components/DatasourceValueSelect';
 import IntervalAndDuration from '@/pages/alertRules/Form/components/IntervalAndDuration';
-import ElasticsearchSettings from './ElasticsearchSettings';
-import AliyunSLSSettings from './AliyunSLSSettings';
+import { DatasourceCateSelect } from '@/components/DatasourceSelect';
+import { getDefaultValuesByCate } from '../../../utils';
+import AdvancedSettings from './AdvancedSettings';
+import Loki from './Loki';
 
-export default function index() {
+// @ts-ignore
+import PlusAlertRule from 'plus:/parcels/AlertRule';
+
+export default function index({ form }) {
   const { t } = useTranslation('alertRules');
-  const { groupedDatasourceList } = useContext(CommonStateContext);
-  const datasourceCates = _.filter(getAuthorizedDatasourceCates(), (item) => item.type === 'logging');
+  const { groupedDatasourceList, datasourceCateOptions, isPlus } = useContext(CommonStateContext);
+  const prod = Form.useWatch('prod');
+  const cate = Form.useWatch('cate');
 
   return (
     <div>
       <Row gutter={16}>
         <Col span={12}>
           <Form.Item label={t('common:datasource.type')} name='cate'>
-            <Select>
-              {_.map(datasourceCates, (item) => {
-                return (
-                  <Select.Option value={item.value} key={item.value}>
-                    {item.label}
-                  </Select.Option>
-                );
-              })}
-            </Select>
+            <DatasourceCateSelect
+              scene='alert'
+              filterCates={(cates) => {
+                return _.filter(cates, (item) => {
+                  return _.includes(item.type, prod) && !!item.alertRule && (item.alertPro ? isPlus : true);
+                });
+              }}
+              onChange={(val) => {
+                const cateObj = _.find(datasourceCateOptions, (item) => item.value === val);
+                if (cateObj) {
+                  form.setFieldsValue(getDefaultValuesByCate(prod, val));
+                }
+              }}
+            />
           </Form.Item>
         </Col>
         <Col span={12}>
           <Form.Item shouldUpdate={(prevValues, curValues) => prevValues.cate !== curValues.cate} noStyle>
             {({ getFieldValue, setFieldsValue }) => {
               const cate = getFieldValue('cate');
-              return <DatasourceValueSelect setFieldsValue={setFieldsValue} cate={cate} datasourceList={groupedDatasourceList[cate] || []} />;
+              return (
+                <DatasourceValueSelect
+                  setFieldsValue={setFieldsValue}
+                  cate={cate}
+                  datasourceList={groupedDatasourceList[cate] || []}
+                  mode={cate === 'loki' ? 'multiple' : undefined}
+                />
+              );
             }}
           </Form.Item>
         </Col>
@@ -60,13 +77,12 @@ export default function index() {
         <Form.Item noStyle shouldUpdate={(prevValues, curValues) => !_.isEqual(prevValues.cate, curValues.cate) || !_.isEqual(prevValues.datasource_ids, curValues.datasource_ids)}>
           {(form) => {
             const cate = form.getFieldValue('cate');
-            const datasourceValue = form.getFieldValue('datasource_ids');
-            if (cate === 'elasticsearch') {
-              return <ElasticsearchSettings form={form} datasourceValue={datasourceValue} />;
+            let datasourceValue = form.getFieldValue('datasource_ids');
+            datasourceValue = _.isArray(datasourceValue) ? datasourceValue[0] : datasourceValue;
+            if (cate === 'loki') {
+              return <Loki datasourceCate={cate} datasourceValue={datasourceValue} />;
             }
-            if (cate === 'aliyun-sls') {
-              return <AliyunSLSSettings form={form} />;
-            }
+            return <PlusAlertRule cate={cate} form={form} datasourceValue={datasourceValue} />;
           }}
         </Form.Item>
       </div>
@@ -79,6 +95,7 @@ export default function index() {
           return t('datasource:es.alert.prom_for_duration_tip', { num });
         }}
       />
+      {cate !== 'loki' && <AdvancedSettings />}
     </div>
   );
 }

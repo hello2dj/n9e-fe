@@ -14,22 +14,47 @@
  * limitations under the License.
  *
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
+import moment from 'moment';
+import _ from 'lodash';
 import PageLayout from '@/components/pageLayout';
-import { Button, Table, Input, message, List, Row, Col, Modal } from 'antd';
-import { EditOutlined, DeleteOutlined, SearchOutlined, UserOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { Button, Table, Input, message, List, Row, Col, Modal, Space, Tree } from 'antd';
+import { EditOutlined, DeleteOutlined, SearchOutlined, UserOutlined, InfoCircleOutlined, DownOutlined } from '@ant-design/icons';
 import UserInfoModal from './component/createModal';
 import { getTeamInfoList, getTeamInfo, deleteTeam, deleteMember } from '@/services/manage';
 import { User, Team, UserType, ActionType, TeamInfo } from '@/store/manageInterface';
 import { ColumnsType } from 'antd/lib/table';
 import { useTranslation } from 'react-i18next';
+import { listToTree } from '@/components/BusinessGroup';
+import { CommonStateContext } from '@/App';
 import './index.less';
 import './locale';
 
 const { confirm } = Modal;
 export const PAGE_SIZE = 20;
 
+export function getLocaleExpandedKeys() {
+  const val = localStorage.getItem('team_tree_expanded_keys');
+  try {
+    if (val) {
+      const parsed = JSON.parse(val);
+      if (_.isArray(parsed)) {
+        return parsed;
+      }
+      return [];
+    }
+    return [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function setLocaleExpandedKeys(nodes: string[]) {
+  localStorage.setItem('team_tree_expanded_keys', JSON.stringify(nodes));
+}
+
 const Resource: React.FC = () => {
+  const { siteInfo } = useContext(CommonStateContext);
   const { t } = useTranslation('user');
   const [visible, setVisible] = useState<boolean>(false);
   const [action, setAction] = useState<ActionType>();
@@ -88,7 +113,7 @@ const Resource: React.FC = () => {
                   handleClose('updateMember');
                 });
               },
-              onCancel: () => { },
+              onCancel: () => {},
             });
           }}
         >
@@ -112,7 +137,7 @@ const Resource: React.FC = () => {
     getTeamList('', isDeleteOrAdd);
   };
 
-  // 获取用户组列表
+  // 获取团队列表
   const getTeamList = (search?: string, isDelete?: boolean) => {
     getTeamInfoList({ query: search || '' }).then((data) => {
       setTeamList(data.dat || []);
@@ -122,7 +147,7 @@ const Resource: React.FC = () => {
     });
   };
 
-  // 获取用户组详情
+  // 获取团队详情
   const getTeamInfoDetail = (id: string) => {
     setMemberLoading(true);
     getTeamInfo(id).then((data: TeamInfo) => {
@@ -225,21 +250,48 @@ const Resource: React.FC = () => {
                 }}
               />
             </div>
-
-            <List
-              style={{
-                marginBottom: '12px',
-                flex: 1,
-                overflow: 'auto',
-              }}
-              dataSource={teamList}
-              size='small'
-              renderItem={(item) => (
-                <List.Item key={item.id} className={teamId === item.id ? 'is-active' : ''} onClick={() => setTeamId(item.id)}>
-                  {item.name}
-                </List.Item>
-              )}
-            />
+            {siteInfo?.teamDisplayMode == 'list' ? (
+              <div className='radio-list' style={{ overflowY: 'auto' }}>
+                <List
+                  style={{
+                    marginBottom: '12px',
+                    flex: 1,
+                    overflow: 'auto',
+                  }}
+                  dataSource={teamList}
+                  size='small'
+                  renderItem={(item) => (
+                    <List.Item key={item.id} className={teamId === item.id ? 'is-active' : ''} onClick={() => setTeamId(item.id)}>
+                      {item.name}
+                    </List.Item>
+                  )}
+                />
+              </div>
+            ) : (
+              <div className='radio-list' style={{ overflowY: 'auto' }}>
+                {!_.isEmpty(teamList) && (
+                  <Tree
+                    rootClassName='business-group-tree'
+                    showLine={{
+                      showLeafIcon: false,
+                    }}
+                    defaultExpandParent={false}
+                    defaultExpandedKeys={getLocaleExpandedKeys()}
+                    selectedKeys={teamId ? [_.toString(teamId)] : []}
+                    blockNode
+                    switcherIcon={<DownOutlined />}
+                    onSelect={(_selectedKeys, e: any) => {
+                      const nodeId = e.node.id;
+                      setTeamId(nodeId as any);
+                    }}
+                    onExpand={(expandedKeys: string[]) => {
+                      setLocaleExpandedKeys(expandedKeys);
+                    }}
+                    treeData={listToTree(teamList as any, siteInfo?.teamSeparator)}
+                  />
+                )}
+              </div>
+            )}
           </div>
           {teamList.length > 0 ? (
             <div className='resource-table-content'>
@@ -275,7 +327,7 @@ const Resource: React.FC = () => {
                             handleClose(true);
                           });
                         },
-                        onCancel: () => { },
+                        onCancel: () => {},
                       });
                     }}
                   />
@@ -286,7 +338,17 @@ const Resource: React.FC = () => {
                     color: '#666',
                   }}
                 >
-                  {t('common:table.note')}：{teamInfo && teamInfo.note ? teamInfo.note : '-'}
+                  <Space>
+                    <span>
+                      {t('common:table.note')}：{teamInfo?.note ? teamInfo.note : '-'}
+                    </span>
+                    <span>
+                      {t('common:table.update_by')}：{teamInfo?.update_by ? teamInfo.update_by : '-'}
+                    </span>
+                    <span>
+                      {t('common:table.update_at')}：{teamInfo?.update_at ? moment.unix(teamInfo.update_at).format('YYYY-MM-DD HH:mm:ss') : '-'}
+                    </span>
+                  </Space>
                 </Col>
               </Row>
               <Row justify='space-between' align='middle'>

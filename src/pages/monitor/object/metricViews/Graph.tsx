@@ -18,8 +18,8 @@ import React, { useState, useEffect, useContext } from 'react';
 import _ from 'lodash';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
-import { Card, Space, Dropdown, Menu, Tag, Popover, Divider } from 'antd';
-import { ShareAltOutlined, SyncOutlined, CloseCircleOutlined, DownOutlined, PlusCircleOutlined, SettingOutlined, LineChartOutlined } from '@ant-design/icons';
+import { Card, Space, Dropdown, Menu, Tag, Popover, Divider, Tooltip } from 'antd';
+import { ShareAltOutlined, SyncOutlined, CloseCircleOutlined, DownOutlined, PlusCircleOutlined, SettingOutlined, LineChartOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { IRawTimeRange } from '@/components/TimeRangePicker';
 import { getLabels, getQueryRange, getExprs, setTmpChartData } from '@/services/metricViews';
 import { CommonStateContext } from '@/App';
@@ -62,7 +62,7 @@ export default function Graph(props: IProps) {
     sharedSortDirection: 'desc',
     legend: true,
     unit: 'none',
-    colorRange: colors[0].value,
+    colorRange: colors[1].value,
     reverseColorOrder: false,
     colorDomainAuto: true,
     colorDomain: [],
@@ -139,7 +139,27 @@ export default function Graph(props: IProps) {
     <Card
       size='small'
       style={{ marginBottom: 10 }}
-      title={metric}
+      title={
+        <Space>
+          {metric}
+          <Tooltip
+            title={
+              <div>
+                {getExprs({
+                  metric,
+                  match: getMatchStr(match),
+                  aggrFunc,
+                  aggrGroups,
+                  calcFunc,
+                  comparison,
+                })}
+              </div>
+            }
+          >
+            <InfoCircleOutlined />
+          </Tooltip>
+        </Space>
+      }
       className='n9e-metric-views-metrics-graph'
       extra={
         <Space>
@@ -342,18 +362,18 @@ export default function Graph(props: IProps) {
           ) : null}
           {chartType === 'hexbin' && (
             <div>
-              {t('graph.calc')}：：
+              {t('graph.calc')}：
               <Dropdown
                 overlay={
                   <Menu onClick={(e) => setReduceFunc(e.key)} selectedKeys={[reduceFunc]}>
                     {_.map(calcsOptions, (val, key) => {
-                      return <Menu.Item key={key}>{i18n.language === 'en_US' ? key : val.name}</Menu.Item>;
+                      return <Menu.Item key={key}>{t(`dashboard:calcs.${key}`)}</Menu.Item>;
                     })}
                   </Menu>
                 }
               >
                 <a className='ant-dropdown-link' onClick={(e) => e.preventDefault()}>
-                  {i18n.language === 'en_US' ? reduceFunc : calcsOptions[reduceFunc]?.name} <DownOutlined />
+                  {t(`dashboard:calcs.${reduceFunc}`)} <DownOutlined />
                 </a>
               </Dropdown>
             </div>
@@ -364,7 +384,7 @@ export default function Graph(props: IProps) {
         {chartType === 'line' && <Timeseries inDashboard={false} values={lineGraphProps as any} series={series} />}
         {chartType === 'hexbin' && (
           <div style={{ padding: '20px 0 0 0', height: highLevelConfig.chartheight }}>
-            <Hexbin values={hexbinGraphProps as any} series={series} />
+            <Hexbin values={hexbinGraphProps as any} series={series} time={range} />
           </div>
         )}
       </div>

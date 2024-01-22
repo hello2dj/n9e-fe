@@ -21,6 +21,7 @@ interface IOptions {
   type: 'si' | 'iec';
   base?: 'bits' | 'bytes';
   decimals: number;
+  postfix?: string;
 }
 
 const defaultOptions: IOptions = {
@@ -82,11 +83,12 @@ export function format(value: number, options = defaultOptions) {
       stat: '',
     };
   const baseUtil = options.base ? baseUtilMap[options.base] : ''; // 支持
+  const postfix = options.postfix || '';
   if ((options.type === 'si' && Math.abs(value) < 1000) || (options.type === 'iec' && Math.abs(value) < 1024)) {
     return {
       value: _.round(value, options.decimals),
-      unit: baseUtil,
-      text: _.round(value, options.decimals) + baseUtil,
+      unit: baseUtil + postfix,
+      text: _.round(value, options.decimals) + baseUtil + postfix,
       stat: value,
     };
   }
@@ -112,11 +114,10 @@ export function format(value: number, options = defaultOptions) {
     const exp = _.get(map, options.type === 'iec' ? 'iecExp' : 'exp');
     const divider = Math.pow(baseNum, exp);
     const newValue = _.round(value / divider, options.decimals);
-
     return {
       value: newValue,
-      unit: unit + baseUtil,
-      text: newValue + unit + baseUtil,
+      unit: unit + baseUtil + postfix,
+      text: newValue + unit + baseUtil + postfix,
       stat: value,
     };
   }

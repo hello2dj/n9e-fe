@@ -6,6 +6,7 @@ const zh_CN = {
   notify_groups: '告警接收组',
   basic_configs: '基础配置',
   name: '规则名称',
+  name_severities_appendtags: '名称 & 级别 & 附加标签',
   append_tags: '附加标签',
   append_tags_msg: '标签格式不正确，请检查！',
   append_tags_msg1: '标签长度应小于等于 64 位',
@@ -46,7 +47,9 @@ const zh_CN = {
     dashboard_link: '仪表盘链接',
     desc: '描述',
   },
-
+  invalid_datasource_tip_1: '数据源',
+  invalid_datasource_tip_2: '未配置关联告警引擎集群',
+  invalid_datasource_reload: '刷新数据源',
   host: {
     query: {
       title: '机器筛选',
@@ -75,7 +78,6 @@ const zh_CN = {
     prom_for_duration_tip:
       '通常持续时长大于执行频率，在持续时长内按照执行频率多次执行PromQL查询，每次都触发才生成告警；如果持续时长置为0，表示只要有一次PromQL查询触发阈值，就生成告警',
   },
-
   metric: {
     query: {
       title: '告警条件',
@@ -84,7 +86,6 @@ const zh_CN = {
     prom_for_duration_tip:
       '通常持续时长大于执行频率，在持续时长内按照执行频率多次执行PromQL查询，每次都触发才生成告警；如果持续时长置为0，表示只要有一次PromQL查询触发阈值，就生成告警',
   },
-
   batch: {
     not_select: '请先选择策略',
     delete: '删除告警规则',
@@ -132,8 +133,14 @@ const zh_CN = {
         callbacks: '回调地址',
         note: '备注',
         runbook_url: '预案链接',
+        service_cal_ids: '服务日历',
       },
     },
   },
+  brain_result_btn: '训练结果',
+  testTip: `
+  规则有效性检查，包括以下检查项：<br />
+  1. 用户联系方式有效性检查
+  `,
 };
 export default zh_CN;

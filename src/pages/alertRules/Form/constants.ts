@@ -42,7 +42,8 @@ export const defaultRuleConfig = {
         expressions: [
           {
             ref: 'A',
-            comparisonOperator: '==',
+            comparisonOperator: '>',
+            value: 0,
             logicalOperator: '&&',
           },
         ],
@@ -54,6 +55,15 @@ export const defaultRuleConfig = {
     algorithm: 'holtwinters',
     severity: 2,
   },
+  loki: {
+    queries: [
+      {
+        // log_ql: '',
+        prom_ql: '', // 为了兼容老版本
+        severity: 2,
+      },
+    ],
+  },
 };
 
 export const defaultValues = {
@@ -62,7 +72,7 @@ export const defaultValues = {
     {
       enable_days_of_week: ['0', '1', '2', '3', '4', '5', '6'],
       enable_stime: moment('00:00', 'HH:mm'),
-      enable_etime: moment('23:59', 'HH:mm'),
+      enable_etime: moment('00:00', 'HH:mm'), // 起止时间一致时，表示全天有效
     },
   ],
   notify_recovered: true,
@@ -82,9 +92,16 @@ export const ruleTypeOptions = [
   {
     label: 'Metric',
     value: 'metric',
+    pro: false,
   },
   {
     label: 'Host',
     value: 'host',
+    pro: false,
+  },
+  {
+    label: 'Log',
+    value: 'logging',
+    pro: false,
   },
 ];

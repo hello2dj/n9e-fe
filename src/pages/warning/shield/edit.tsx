@@ -19,7 +19,6 @@ import { useLocation } from 'react-router-dom';
 import PageLayout from '@/components/pageLayout';
 import OperateForm from './components/operateForm';
 import { useTranslation } from 'react-i18next';
-
 import './index.less';
 
 function useQuery() {
@@ -32,6 +31,11 @@ const EditShield: React.FC = () => {
   const { state } = useLocation<any>();
   const query = useQuery();
   const isClone = query.get('mode');
+
+  // 兼容 <= v6.2.x 版本 loki prod
+  if (state.prod === 'loki') {
+    state.prod = 'logging';
+  }
 
   return (
     <PageLayout title={t('title')} showBack>

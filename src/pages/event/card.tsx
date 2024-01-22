@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useLayoutEffect, useRef, useImperativeHandle, useContext } from 'react';
-import { Button, Row, Col, Drawer, Tag, Table } from 'antd';
-import { useHistory } from 'react-router';
+import { Button, Row, Col, Drawer, Tag, Table, Dropdown, Menu, Tooltip } from 'antd';
+import { useHistory, Link } from 'react-router-dom';
 import { ReactNode } from 'react-markdown/lib/react-markdown';
 import _, { throttle } from 'lodash';
 import moment from 'moment';
@@ -9,9 +9,16 @@ import queryString from 'query-string';
 import { useTranslation } from 'react-i18next';
 import { getAlertCards, getCardDetail } from '@/services/warning';
 import { CommonStateContext } from '@/App';
+import { parseRange } from '@/components/TimeRangePicker';
 import { SeverityColor, deleteAlertEventsModal } from './index';
 import CardLeft from './cardLeft';
 import './index.less';
+
+// @ts-ignore
+import BatchAckBtn from 'plus:/parcels/Event/Acknowledge/BatchAckBtn';
+// @ts-ignore
+import AckBtn from 'plus:/parcels/Event/Acknowledge/AckBtn';
+
 interface Props {
   filter: any;
   header: ReactNode;
@@ -58,7 +65,13 @@ function Card(props: Props, ref) {
   const { run: reloadCard } = useDebounceFn(
     () => {
       if (!rule) return;
-      getAlertCards({ ...filter, rule: rule.trim() }).then((res) => {
+      const params: any = { ..._.omit(filter, 'range'), rule: rule.trim() };
+      if (filter.range) {
+        const parsedRange = parseRange(filter.range);
+        params.stime = moment(parsedRange.start).unix();
+        params.etime = moment(parsedRange.end).unix();
+      }
+      getAlertCards(params).then((res) => {
         setCardList(res.dat);
       });
     },
@@ -85,49 +98,51 @@ function Card(props: Props, ref) {
 
   const columns = [
     {
-      title: t('common:datasource.type'),
-      dataIndex: 'cate',
+      title: t('prod'),
+      dataIndex: 'rule_prod',
+      width: 100,
+      render: (value) => {
+        return t(`AlertHisEvents:rule_prod.${value}`);
+      },
     },
     {
-      title: t('common:datasource.name'),
+      title: t('common:datasource.id'),
       dataIndex: 'datasource_id',
+      width: 100,
       render: (value, record) => {
         if (value === 0) {
-          return (
-            <Tag color='purple' key={value}>
-              $all
-            </Tag>
-          );
+          return '$all';
         }
-        const name = _.find(groupedDatasourceList[record.cate], { id: value })?.name;
-        if (!name) return null;
-        return (
-          <Tag color='purple' key={value}>
-            {_.find(groupedDatasourceList[record.cate], { id: value })?.name}
-          </Tag>
-        );
+        return _.find(groupedDatasourceList?.[record.cate], { id: value })?.name || '-';
       },
     },
     {
       title: t('rule_name'),
       dataIndex: 'rule_name',
       render(title, { id, tags }) {
-        const content =
-          tags &&
-          tags.map((item) => (
-            <Tag color='purple' key={item}>
-              {item}
-            </Tag>
-          ));
         return (
           <>
             <div>
-              <a style={{ padding: 0 }} onClick={() => history.push(`/alert-cur-events/${id}`)}>
-                {title}
-              </a>
+              <Link to={`/alert-cur-events/${id}`}>{title}</Link>
             </div>
             <div>
-              <span className='event-tags'>{content}</span>
+              {_.map(tags, (item) => {
+                return (
+                  <Tooltip key={item} title={item}>
+                    <Tag color='purple' style={{ maxWidth: '100%' }}>
+                      <div
+                        style={{
+                          maxWidth: 'max-content',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {item}
+                      </div>
+                    </Tag>
+                  </Tooltip>
+                );
+              })}
             </div>
           </>
         );
@@ -144,16 +159,22 @@ function Card(props: Props, ref) {
     {
       title: t('common:table.operations'),
       dataIndex: 'operate',
-      width: 120,
+      width: 200,
       render(value, record) {
         return (
           <>
+            <AckBtn
+              data={record}
+              onOk={() => {
+                fetchCardDetail(openedCard!);
+              }}
+            />
             <Button
               size='small'
               type='link'
               onClick={() => {
                 history.push({
-                  hash: '/alert-mutes/add',
+                  pathname: '/alert-mutes/add',
                   search: queryString.stringify({
                     busiGroup: record.group_id,
                     prod: record.rule_prod,
@@ -189,6 +210,25 @@ function Card(props: Props, ref) {
     },
   ];
 
+  if (import.meta.env.VITE_IS_PRO === 'true') {
+    columns.splice(4, 0, {
+      title: t('status'),
+      dataIndex: 'status',
+      width: 100,
+      render: (value) => {
+        return t(`status_${value}`) as string;
+      },
+    });
+    columns.splice(5, 0, {
+      title: t('claimant'),
+      dataIndex: 'claimant',
+      width: 100,
+      render: (value) => {
+        return value;
+      },
+    });
+  }
+
   const fetchCardDetail = (card: CardType) => {
     setVisible(true);
     setOpenedCard(card);
@@ -204,7 +244,7 @@ function Card(props: Props, ref) {
   return (
     <div className='event-content cur-events' style={{ display: 'flex', height: '100%' }} ref={Ref}>
       <CardLeft onRefreshRule={setRule} />
-      <div style={{ background: '#fff', flex: 1, padding: 16 }}>
+      <div style={{ background: '#fff', flex: 1, padding: 16, overflowY: 'auto' }}>
         {header}
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
           {cardList?.map((card, i) => (
@@ -221,30 +261,47 @@ function Card(props: Props, ref) {
         title={
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span>{openedCard?.title}</span>
-            <Button
-              danger
+            <Dropdown
               disabled={selectedRowKeys.length === 0}
-              onClick={() =>
-                deleteAlertEventsModal(
-                  selectedRowKeys,
-                  () => {
-                    setSelectedRowKeys([]);
-                    fetchCardDetail(openedCard!);
-                  },
-                  t,
-                )
+              overlay={
+                <Menu>
+                  <Menu.Item
+                    disabled={selectedRowKeys.length === 0}
+                    onClick={() =>
+                      deleteAlertEventsModal(
+                        selectedRowKeys,
+                        () => {
+                          setSelectedRowKeys([]);
+                          fetchCardDetail(openedCard!);
+                        },
+                        t,
+                      )
+                    }
+                  >
+                    {t('common:btn.batch_delete')}{' '}
+                  </Menu.Item>
+                  <BatchAckBtn
+                    selectedIds={selectedRowKeys}
+                    onOk={() => {
+                      setSelectedRowKeys([]);
+                      fetchCardDetail(openedCard!);
+                    }}
+                  />
+                </Menu>
               }
+              trigger={['click']}
             >
-              {t('common:btn.batch_delete')}
-            </Button>
+              <Button style={{ marginRight: 8 }}>{t('batch_btn')}</Button>
+            </Dropdown>
           </div>
         }
         placement='right'
         onClose={onClose}
         visible={visible}
-        width={960}
+        width={1060}
       >
         <Table
+          tableLayout='fixed'
           size='small'
           rowKey={'id'}
           className='card-event-drawer'

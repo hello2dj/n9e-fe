@@ -75,17 +75,14 @@ function renderOperationParamEditor(
         />
       );
     case 'number':
-      return (
         <InputNumber
           style={{ width: '100%' }}
           size='small'
           value={value as number}
-          onChange={(val: number) => {
-            onChange(val);
-          }
-          }
-        />
-      );
+          onChange={(val) => {
+            onChange(val!);
+          }}
+    />
     case 'string':
     default:
       return (

@@ -1,11 +1,11 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { Button, Table, Tag, Alert } from 'antd';
 import moment from 'moment';
 import _ from 'lodash';
 import semver from 'semver';
 import PageLayout from '@/components/pageLayout';
-import { BusinessGroup } from '@/pages/targets';
+import BusinessGroup from '@/components/BusinessGroup';
 import { CommonStateContext } from '@/App';
 import BlankBusinessPlaceholder from '@/components/BlankBusinessPlaceholder';
 import { getDashboards, getDashboard } from '@/services/dashboardV2';
@@ -14,17 +14,16 @@ import './locale';
 
 export default function index() {
   const { t } = useTranslation('migrationDashboard');
-  const commonState = useContext(CommonStateContext);
+  const { businessGroup } = useContext(CommonStateContext);
   const [refreshFlag, setRefreshFlag] = useState(_.uniqueId('refresh_'));
   const [loading, setLoading] = useState(false);
   const [boards, setBoards] = useState<any[]>([]);
   const [settingOpen, setSettingOpen] = useState(false);
-  const { curBusiId: busiId } = commonState;
 
   useEffect(() => {
-    if (busiId) {
+    if (businessGroup.id) {
       setLoading(true);
-      getDashboards(busiId)
+      getDashboards(businessGroup.id)
         .then((res) => {
           let requests: Promise<any>[] = [];
           _.forEach(res, (board) => {
@@ -52,18 +51,13 @@ export default function index() {
           setLoading(false);
         });
     }
-  }, [busiId, refreshFlag]);
+  }, [businessGroup.id, refreshFlag]);
 
   return (
     <PageLayout title={t('title')}>
       <div style={{ display: 'flex' }}>
-        <BusinessGroup
-          curBusiId={busiId}
-          setCurBusiId={(id) => {
-            commonState.setCurBusiId(id);
-          }}
-        />
-        {busiId ? (
+        <BusinessGroup />
+        {businessGroup.ids ? (
           <div className='dashboards-v2'>
             <div style={{ marginBottom: 10 }}>
               <Button
@@ -72,16 +66,13 @@ export default function index() {
                   setSettingOpen(true);
                 }}
               >
-                迁移
+                {t('migrate')}
               </Button>
             </div>
             <Alert
               message={
                 <div>
-                  v6 版本将不再支持全局 Prometheus 集群切换，新版本可通过图表关联数据源变量来实现该能力。 <br />
-                  迁移工具会创建数据源变量以及关联所有未关联数据源的图表。
-                  <br />
-                  以下是待迁移的仪表盘列表，点击迁移按钮开始迁移。
+                  <Trans ns='migrationDashboard' i18nKey='help' components={{ br: <br /> }} />
                 </div>
               }
               type='warning'

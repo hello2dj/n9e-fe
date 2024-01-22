@@ -14,25 +14,24 @@
  * limitations under the License.
  *
  */
-import React, { useState, useEffect, useMemo, useRef, useContext } from 'react';
-import { Form, Input, Card, Select, Col, Button, Row, message, DatePicker, Tooltip, Spin, Space, Radio, TimePicker } from 'antd';
+import React, { useState, useEffect, useContext } from 'react';
+import { Form, Input, Card, Select, Col, Button, Row, message, DatePicker, Tooltip, Space, Radio, TimePicker, Checkbox } from 'antd';
 import { QuestionCircleFilled, PlusCircleOutlined, CaretDownOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useHistory } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import _ from 'lodash';
 import moment from 'moment';
-import AdvancedWrap from '@/components/AdvancedWrap';
 import { addShield, editShield } from '@/services/shield';
-import { getBusiGroups } from '@/services/common';
 import { shieldItem } from '@/store/warningInterface';
 import DatasourceValueSelect from '@/pages/alertRules/Form/components/DatasourceValueSelect';
 import { CommonStateContext } from '@/App';
-import { getAuthorizedDatasourceCates } from '@/components/AdvancedWrap';
 import { daysOfWeek } from '@/pages/alertRules/constants';
 import ProdSelect from '@/pages/alertRules/Form/components/ProdSelect';
+import { DatasourceCateSelect } from '@/components/DatasourceSelect';
 import TagItem from './tagItem';
 import { timeLensDefault } from '../../const';
-import { getDefaultValuesByProd } from './utils';
+import { getDefaultValuesByProd, processFormValues } from './utils';
+import PreviewMutedEvents from './PreviewMutedEvents';
 import '../index.less';
 
 const { Option } = Select;
@@ -40,7 +39,7 @@ const { TextArea } = Input;
 
 interface Props {
   detail?: shieldItem;
-  type?: number; // 1:创建; 2:克隆 3:编辑
+  type?: number; // 1:编辑; 2:克隆 3:新增
 }
 
 const OperateForm: React.FC<Props> = ({ detail = {}, type }: any) => {
@@ -66,36 +65,7 @@ const OperateForm: React.FC<Props> = ({ detail = {}, type }: any) => {
   const [form] = Form.useForm(null as any);
   const history = useHistory();
   const [timeLen, setTimeLen] = useState('1h');
-  const { curBusiId, busiGroups, groupedDatasourceList } = useContext(CommonStateContext);
-  const [filteredBusiGroups, setFilteredBusiGroups] = useState(busiGroups);
-
-  useEffect(() => {
-    if (!filteredBusiGroups.length) {
-      setFilteredBusiGroups(busiGroups);
-    }
-  }, [JSON.stringify(busiGroups)]);
-
-  useEffect(() => {
-    const btime = form.getFieldValue('btime');
-    const etime = form.getFieldValue('etime');
-    if (!!etime && !!btime) {
-      const d = moment.duration(etime - btime).days();
-      const h = moment.duration(etime - btime).hours();
-      const m = moment.duration(etime - btime).minutes();
-      const s = moment.duration(etime - btime).seconds();
-    }
-    if (!detail.busiGroup) {
-      if (curBusiId) {
-        form.setFieldsValue({ busiGroup: curBusiId });
-      } else if (filteredBusiGroups.length > 0) {
-        form.setFieldsValue({ busiGroup: filteredBusiGroups[0].id });
-      } else {
-        message.warning('无可用应用');
-        history.push('/alert-mutes');
-      }
-    }
-    return () => { };
-  }, [form]);
+  const { groupedDatasourceList, busiGroups, isPlus } = useContext(CommonStateContext);
 
   useEffect(() => {
     timeChange();
@@ -121,36 +91,21 @@ const OperateForm: React.FC<Props> = ({ detail = {}, type }: any) => {
   };
 
   const onFinish = (values) => {
-    const tags = values?.tags?.map((item) => {
-      return {
-        ...item,
-        value: Array.isArray(item.value) ? item.value.join(' ') : item.value,
-      };
-    });
-    const params = {
-      ...values,
-      btime: moment(values.btime).unix(),
-      etime: moment(values.etime).unix(),
-      tags,
-      periodic_mutes: _.map(values.periodic_mutes, (item) => {
-        return {
-          enable_days_of_week: _.join(item.enable_days_of_week, ' '),
-          enable_stime: moment(item.enable_stime).format('HH:mm'),
-          enable_etime: moment(item.enable_etime).format('HH:mm'),
-        };
-      }),
-      cluster: '0',
+    const params = processFormValues(values);
+    const curBusiItemId = form.getFieldValue('group_id');
+    const historyPushOptions = {
+      pathname: '/alert-mutes',
+      search: `?id=${curBusiItemId}`,
     };
-    const curBusiItemId = form.getFieldValue('busiGroup');
     if (type == 1) {
       editShield(params, curBusiItemId, detail.id).then((_) => {
         message.success(t('common:success.edit'));
-        history.push('/alert-mutes');
+        history.push(historyPushOptions);
       });
     } else {
       addShield(params, curBusiItemId).then((_) => {
         message.success(t('common:success.add'));
-        history.push('/alert-mutes');
+        history.push(historyPushOptions);
       });
     }
   };
@@ -167,29 +122,6 @@ const OperateForm: React.FC<Props> = ({ detail = {}, type }: any) => {
     });
   };
 
-  const [fetching, setFetching] = useState(false);
-  const fetchRef = useRef(0);
-  const debounceFetcher = useMemo(() => {
-    const loadOptions = (value: string) => {
-      fetchRef.current += 1;
-      const fetchId = fetchRef.current;
-      setFilteredBusiGroups([]);
-      setFetching(true);
-
-      getBusiGroups(value).then((res) => {
-        if (fetchId !== fetchRef.current) {
-          // for fetch callback order
-          return;
-        }
-
-        setFilteredBusiGroups(res.dat || []);
-        setFetching(false);
-      });
-    };
-
-    return _.debounce(loadOptions, 500);
-  }, []);
-
   const content = (
     <Form
       form={form}
@@ -199,25 +131,35 @@ const OperateForm: React.FC<Props> = ({ detail = {}, type }: any) => {
       onFinish={onFinish}
       initialValues={{
         ...detail,
-        prod: detail.prod || 'host',
+        tags: detail?.tags?.map((item) => {
+          if (['not in', 'in'].includes(item.func)) {
+            return {
+              ...item,
+              value: item.value.split(' '),
+            };
+          }
+          return item;
+        }),
+        prod: detail.prod || 'metric',
+        severities: detail.severities || [1, 2, 3],
         btime: detail?.btime ? moment(detail.btime * 1000) : moment(btimeDefault),
         etime: detail?.etime ? moment(detail.etime * 1000) : moment(etimeDefault),
         mute_time_type: detail?.mute_time_type || 0,
         periodic_mutes: detail?.periodic_mutes
           ? _.map(detail?.periodic_mutes, (item) => {
-            return {
-              enable_days_of_week: _.split(item.enable_days_of_week, ' '),
-              enable_stime: moment(item.enable_stime, 'HH:mm'),
-              enable_etime: moment(item.enable_etime, 'HH:mm'),
-            };
-          })
+              return {
+                enable_days_of_week: _.split(item.enable_days_of_week, ' '),
+                enable_stime: moment(item.enable_stime, 'HH:mm'),
+                enable_etime: moment(item.enable_etime, 'HH:mm'),
+              };
+            })
           : [
-            {
-              enable_days_of_week: ['1', '2', '3', '4', '5', '6', '0'],
-              enable_stime: moment('00:00', 'HH:mm'),
-              enable_etime: moment('23:59', 'HH:mm'),
-            },
-          ],
+              {
+                enable_days_of_week: ['1', '2', '3', '4', '5', '6', '0'],
+                enable_stime: moment('00:00', 'HH:mm'),
+                enable_etime: moment('00:00', 'HH:mm'),
+              },
+            ],
       }}
     >
       <Card>
@@ -233,19 +175,24 @@ const OperateForm: React.FC<Props> = ({ detail = {}, type }: any) => {
           <Input />
         </Form.Item>
 
-        <Form.Item label={t('common:business_group')} name='busiGroup'>
-          <Select showSearch filterOption={false} suffixIcon={<CaretDownOutlined />} onSearch={debounceFetcher} notFoundContent={fetching ? <Spin size='small' /> : null}>
-            {_.map(filteredBusiGroups, (item) => (
-              <Option value={item.id} key={item.id}>
-                {item.name}
-              </Option>
-            ))}
-          </Select>
+        <Form.Item label={t('common:business_group')} name='group_id'>
+          <Select
+            disabled={type == 1}
+            options={_.map(busiGroups, (item) => {
+              return {
+                label: item.name,
+                value: item.id,
+              };
+            })}
+          />
         </Form.Item>
         <ProdSelect
           label={t('prod')}
-          onChange={(e) => {
-            form.setFieldsValue(getDefaultValuesByProd(e.target.value));
+          onChange={(prod) => {
+            form.setFieldsValue({
+              ...getDefaultValuesByProd(prod, isPlus),
+              datasource_ids: [],
+            });
           }}
         />
         <Form.Item shouldUpdate={(prevValues, curValues) => prevValues.prod !== curValues.prod} noStyle>
@@ -255,31 +202,21 @@ const OperateForm: React.FC<Props> = ({ detail = {}, type }: any) => {
               return (
                 <Row gutter={10}>
                   <Col span={12}>
-                    <AdvancedWrap var='VITE_IS_ALERT_ES'>
-                      {(isShow) => {
-                        return (
-                          <Form.Item label={t('common:datasource.type')} name='cate' initialValue='prometheus'>
-                            <Select>
-                              {_.map(
-                                _.filter(getAuthorizedDatasourceCates(), (item) => {
-                                  if (item.value === 'elasticsearch') {
-                                    return isShow[0];
-                                  }
-                                  return true;
-                                }),
-                                (item) => {
-                                  return (
-                                    <Select.Option value={item.value} key={item.value}>
-                                      {item.label}
-                                    </Select.Option>
-                                  );
-                                },
-                              )}
-                            </Select>
-                          </Form.Item>
-                        );
-                      }}
-                    </AdvancedWrap>
+                    <Form.Item label={t('common:datasource.type')} name='cate' initialValue='prometheus'>
+                      <DatasourceCateSelect
+                        scene='alert'
+                        filterCates={(cates) => {
+                          return _.filter(cates, (item) => {
+                            return _.includes(item.type, prod) && !!item.alertRule && (item.alertPro ? isPlus : true);
+                          });
+                        }}
+                        onChange={() => {
+                          form.setFieldsValue({
+                            datasource_ids: [],
+                          });
+                        }}
+                      />
+                    </Form.Item>
                   </Col>
                   <Col span={12}>
                     <Form.Item shouldUpdate={(prevValues, curValues) => prevValues.cate !== curValues.cate} noStyle>
@@ -293,6 +230,24 @@ const OperateForm: React.FC<Props> = ({ detail = {}, type }: any) => {
               );
             }
           }}
+        </Form.Item>
+        <Form.Item label={t('severities')} name='severities' initialValue={[1, 2, 3]} rules={[{ required: true, message: t('severities_msg') }]}>
+          <Checkbox.Group
+            options={[
+              {
+                label: t('common:severity.1'),
+                value: 1,
+              },
+              {
+                label: t('common:severity.2'),
+                value: 2,
+              },
+              {
+                label: t('common:severity.3'),
+                value: 3,
+              },
+            ]}
+          />
         </Form.Item>
         <Form.Item label={t('mute_type.label')} name='mute_time_type'>
           <Radio.Group>
@@ -429,7 +384,7 @@ const OperateForm: React.FC<Props> = ({ detail = {}, type }: any) => {
                 <Col span={16}>{t('tag.value.label')}</Col>
               </Row>
               {fields.map((field, index) => (
-                <TagItem field={field} key={index} remove={remove} form={form} />
+                <TagItem count={fields.length} field={field} key={index} remove={remove} form={form} />
               ))}
             </>
           )}
@@ -442,6 +397,7 @@ const OperateForm: React.FC<Props> = ({ detail = {}, type }: any) => {
             <Button type='primary' htmlType='submit'>
               {type === 1 ? t('common:btn.edit') : type === 2 ? t('common:btn.clone') : t('common:btn.create')}
             </Button>
+            <PreviewMutedEvents form={form} />
             <Button onClick={() => window.history.back()}>{t('common:btn.cancel')}</Button>
           </Space>
         </Form.Item>

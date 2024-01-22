@@ -1,15 +1,20 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import _ from 'lodash';
-import License from './License';
+import { CommonStateContext } from '@/App';
+// @ts-ignore
+import License, { getLicense } from 'plus:/components/License';
 export { getAuthorizedDatasourceCates } from './utils';
-export { License };
+export type { Cate } from './utils';
+export { License, getLicense };
 
 interface IProps {
   var?: string; // 变量名，多个用逗号分隔
-  children: React.ReactNode | ((isShow: boolean[]) => React.ReactNode);
+  children: React.ReactNode | ((isShow: boolean[], isExpired: boolean) => React.ReactNode);
 }
 
 export default function index(props: IProps) {
+  const { licenseExpired } = useContext(CommonStateContext);
+
   let vars: string[] = [];
   if (props.var) {
     if (props.var.indexOf(',') > -1) {
@@ -22,13 +27,13 @@ export default function index(props: IProps) {
     });
     if (_.some(result, (item) => item === true)) {
       if (typeof props.children === 'function') {
-        return <div>{props.children(result)}</div>;
+        return <div>{props.children(result, licenseExpired)}</div>;
       }
       return <div>{props.children}</div>;
     }
   }
   if (typeof props.children === 'function') {
-    return <div>{props.children([false])}</div>;
+    return <div>{props.children([false], licenseExpired)}</div>;
   }
   return null;
 }

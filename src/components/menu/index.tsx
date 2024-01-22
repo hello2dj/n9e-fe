@@ -14,10 +14,10 @@
  * limitations under the License.
  *
  */
-import { Menu, MenuProps } from 'antd'
+import { FloatFcMenu } from '@fc-components/menu';
 import React, { FC, useState, useEffect, useContext } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
-import { AimOutlined } from '@ant-design/icons';
+import Icon from '@ant-design/icons';
 import _ from 'lodash';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
@@ -25,24 +25,28 @@ import querystring from 'query-string';
 import { getMenuPerm } from '@/services/common';
 import { CommonStateContext } from '@/App';
 import IconFont from '../IconFont';
+import menuIcon from './configs';
 import './menu.less';
 import './locale';
+
+// @ts-ignore
+import getPlusMenu from 'plus:/menu';
 
 const getMenuList = (t) => {
   const menuList = [
     {
       key: 'dashboard',
       icon: <IconFont type='icon-Menu_Dashboard' />,
-      // activeIcon: <Icon component={menuIcon.Dashboard as any} />,
+      activeIcon: <Icon component={menuIcon.Dashboard as any} />,
       label: t('仪表盘'),
       children: [
         {
-          key: '/dashboards-built-in',
-          label: t('内置仪表盘'),
-        },
-        {
           key: '/dashboards',
           label: t('监控大盘'),
+        },
+        {
+          key: '/dashboards-built-in',
+          label: t('内置仪表盘'),
         },
       ],
     },
@@ -101,92 +105,105 @@ const getMenuList = (t) => {
     {
       key: 'log',
       icon: <IconFont type='icon-Menu_LogAnalysis' />,
-      // activeIcon: <Icon component={menuIcon.LogAnalysis as any} />,
+      activeIcon: <Icon component={menuIcon.LogAnalysis as any} />,
       label: t('日志分析'),
-      // children: [
-      //   {
-      //     key: '/log/explorer',
-      //     label: t('即时查询'),
-      //   },
-      // ],
+      children: [
+        {
+          key: '/log/explorer',
+          label: t('即时查询'),
+        },
+        // {
+        //   key: '/log/index-patterns',
+        //   label: t('索引模式'),
+        // },
+      ],
+    },
+    // {
+    //   key: 'trace',
+    //   icon: <IconFont type='icon-Menu_LinkAnalysis' />,
+    //   activeIcon: <Icon component={menuIcon.LinkAnalysis as any} />,
+    //   label: t('链路追踪'),
+    //   children: [
+    //     {
+    //       key: '/trace/explorer',
+    //       label: t('即时查询'),
+    //     },
+    //     {
+    //       key: '/trace/dependencies',
+    //       label: t('拓扑分析'),
+    //     },
+    //   ],
+    // },
+    {
+      key: 'targets',
+      icon: <IconFont type='icon-Menu_Infrastructure' />,
+      activeIcon: <Icon component={menuIcon.Infrastructure as any} />,
+      label: t('基础设施'),
+      children: [
+        {
+          key: '/targets',
+          label: t('监控机器'),
+        },
+      ],
+    },
+
+    {
+      key: 'job',
+      icon: <IconFont type='icon-Menu_AlarmSelfhealing' />,
+      activeIcon: <Icon component={menuIcon.AlarmSelfhealing as any} />,
+      label: t('告警自愈'),
+      children: [
+        {
+          key: '/job-tpls',
+          label: t('自愈脚本'),
+        },
+        {
+          key: '/job-tasks',
+          label: t('执行历史'),
+        },
+        {
+          key: '/ibex-settings',
+          label: t('自愈配置'),
+        },
+      ],
     },
     {
-      key: 'trace',
-      icon: <IconFont type='icon-Menu_LinkAnalysis' />,
-      // activeIcon: <Icon component={menuIcon.LinkAnalysis as any} />,
-      label: t('链路追踪'),
-      // children: [
-      //   {
-      //     key: '/trace/explorer',
-      //     label: t('即时查询'),
-      //   },
-      //   {
-      //     key: '/trace/dependencies',
-      //     label: t('拓扑分析'),
-      //   },
-      // ],
+      key: 'manage',
+      icon: <IconFont type='icon-Menu_PersonnelOrganization' />,
+      activeIcon: <Icon component={menuIcon.PersonnelOrganization as any} />,
+      label: t('人员组织'),
+      children: [
+        {
+          key: '/users',
+          label: t('用户管理'),
+        },
+        {
+          key: '/user-groups',
+          label: t('团队管理'),
+        },
+        {
+          key: '/busi-groups',
+          label: t('业务组管理'),
+        },
+        {
+          key: '/permissions',
+          label: t('权限管理'),
+        },
+      ],
     },
-    // {
-    //   key: 'targets',
-    //   icon: <AimOutlined />,
-    //   label: t('基础设施'),
-    //   children: [
-    //     {
-    //       key: '/targets',
-    //       label: t('监控机器'),
-    //     },
-    //   ],
-    // },
-
-    // {
-    //   key: 'job',
-    //   icon: <IconFont type='icon-Menu_AlarmSelfhealing' />,
-    //   // activeIcon: <Icon component={menuIcon.AlarmSelfhealing as any} />,
-    //   label: t('告警自愈'),
-    //   children: [
-    //     {
-    //       key: '/job-tpls',
-    //       label: t('自愈脚本'),
-    //     },
-    //     {
-    //       key: '/job-tasks',
-    //       label: t('执行历史'),
-    //     },
-    //   ],
-    // },
-    // {
-    //   key: 'manage',
-    //   icon: <IconFont type='icon-Menu_PersonnelOrganization' />,
-    //   // activeIcon: <Icon component={menuIcon.PersonnelOrganization as any} />,
-    //   label: t('人员组织'),
-    //   children: [
-    //     {
-    //       key: '/users',
-    //       label: t('用户管理'),
-    //     },
-    //     {
-    //       key: '/user-groups',
-    //       label: t('用户组管理'),
-    //     },
-    //     {
-    //       key: '/busi-groups',
-    //       label: t('应用管理'),
-    //     },
-    //     {
-    //       key: '/permissions',
-    //       label: t('权限管理'),
-    //     },
-    //   ],
-    // },
     {
       key: 'help',
       icon: <IconFont type='icon-Menu_SystemInformation' />,
-      // activeIcon: <Icon component={menuIcon.SystemInformation as any} />,
+      activeIcon: <Icon component={menuIcon.SystemInformation as any} />,
       label: t('系统配置'),
       children: [
         {
           key: '/help/source',
           label: t('数据源'),
+        },
+        {
+          key: '/help/variable-configs',
+          label: t('变量设置'),
         },
         {
           key: '/help/notification-settings',
@@ -196,53 +213,65 @@ const getMenuList = (t) => {
           key: '/help/notification-tpls',
           label: t('通知模板'),
         },
-        // {
-        //   key: '/help/sso',
-        //   label: t('单点登录'),
-        // },
+        {
+          key: '/help/sso',
+          label: t('单点登录'),
+        },
         {
           key: '/help/servers',
           label: t('告警引擎'),
         },
-        // {
-        //   key: '/help/version',
-        //   label: t('系统版本'),
-        // },
+        {
+          key: '/help/migrate',
+          label: t('仪表盘迁移'),
+        },
+        {
+          key: '/help/version',
+          label: t('系统版本'),
+        },
       ],
     },
   ];
-  if (import.meta.env['VITE_IS_COLLECT']) {
-    const targets = _.find(menuList, (item) => item.key === 'targets');
-    if (targets) {
-      targets.children?.push({
-        key: '/collects',
-        label: t('采集配置'),
-      });
-    }
-  }
   return menuList;
 };
 
 const SideMenu: FC = () => {
+  throw new Error("SideMenuHeaderSideMenuHeaderSideMenuHeaderSideMenuHeader")
   const { t, i18n } = useTranslation('menu');
-  const { profile } = useContext(CommonStateContext);
-  const menuList = getMenuList(t);
-  const menuKeys = menuList.map(m => m.key)
+  const { profile, isPlus, siteInfo } = useContext(CommonStateContext);
+  const [defaultSelectedKeys, setDefaultSelectedKeys] = useState<string[]>();
+  // const menuList = isPlus ? getPlusMenu(t) : getMenuList(t);
+  const menuList = getPlusMenu(t);
   const [menus, setMenus] = useState(menuList);
   const history = useHistory();
   const location = useLocation();
-  const handleClick = ({ key }) => {
+  const { pathname } = location;
+  const [collapsed, setCollapsed] = useState<'0' | '1' | '2' | string | null>(localStorage.getItem('menuCollapsed') || '0');
+  const switchCollapsed = () => {
+    if (!isNaN(Number(collapsed))) {
+      const newColl = (Number(collapsed) === 2 ? -1 : Number(collapsed)) + 1 + '';
+      setCollapsed(newColl);
+      localStorage.setItem('menuCollapsed', newColl);
+    } else {
+      setCollapsed('1');
+      localStorage.setItem('menuCollapsed', '1');
+    }
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 500);
+  };
+  const handleClick = (key) => {
     if ((key as string).startsWith('/')) {
       history.push(key as string);
     }
   };
   const hideSideMenu = () => {
     if (
-      location.hash === '/login' ||
-      location.hash.startsWith('/chart/') ||
-      location.hash.startsWith('/dashboards/share/') ||
-      location.hash === '/callback' ||
-      location.hash.indexOf('/polaris/screen') === 0
+      location.pathname === '/login' ||
+      location.pathname.startsWith('/chart/') ||
+      location.pathname.startsWith('/dashboards/share/') ||
+      location.pathname === '/callback' ||
+      location.pathname.indexOf('/polaris/screen') === 0
     ) {
       return true;
     }
@@ -258,70 +287,83 @@ const SideMenu: FC = () => {
   };
 
   useEffect(() => {
-    if (profile?.roles?.length > 0) {
-      if (profile?.roles.indexOf('Admin') === -1) {
-        getMenuPerm().then((res) => {
-          const { dat } = res;
-          // 过滤掉没有权限的菜单
-          const newMenus: any = _.filter(
-            _.map(menuList, (menu) => {
-              return {
-                ...menu,
-                children: _.filter(menu.children, (item) => item && dat.includes(item.key)),
-              };
-            }),
-            (item) => {
-              return item.children && item.children.length > 0;
-            },
-          );
-          setMenus(newMenus);
-        });
-      } else {
-        setMenus(menuList);
+    setDefaultSelectedKeys([]);
+    for (const item of menuList) {
+      if (item && item.key.startsWith('/') && pathname.includes(item.key)) {
+        setDefaultSelectedKeys([item?.key]);
+        break;
+      } else if (item?.children && item.children.length > 0) {
+        for (const i of item.children) {
+          if (i && (pathname === i.key || pathname.startsWith(i.key + '/'))) {
+            setDefaultSelectedKeys([item?.key, i.key!]);
+            break;
+          }
+        }
       }
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    if (profile?.roles?.length > 0) {
+      getMenuPerm().then((res) => {
+        const { dat } = res;
+        // 过滤掉没有权限的菜单
+        const newMenus: any = _.filter(
+          _.map(menuList, (menu) => {
+            return {
+              ...menu,
+              children: _.filter(menu.children, (item) => item && dat.includes(item.key)),
+            };
+          }),
+          (item) => {
+            return item.children && item.children.length > 0;
+          },
+        );
+        setMenus(newMenus);
+      });
     }
   }, [profile?.roles, i18n.language]);
 
-  const [openKeys, setOpenKeys] = useState(['']);
+  let imgURL = siteInfo?.menu_big_logo_url || '/image/logo-l.svg';
+  if (collapsed === '1') {
+    imgURL = siteInfo?.menu_small_logo_url || '/image/logo.svg';
+  }
 
-  const onOpenChange: MenuProps['onOpenChange'] = (keys) => {
-    const latestOpenKey = keys.find((key) => openKeys.indexOf(key) === -1);
-    if (menuKeys.indexOf(latestOpenKey!) === -1) {
-      setOpenKeys(keys);
-    } else {
-      setOpenKeys(latestOpenKey ? [latestOpenKey] : []);
-    }
-  };
-
-  return hideSideMenu() ? null : (
+  return (
     <div
       style={{
-        display: 'flex',
+        display: hideSideMenu() ? 'none' : 'flex',
         flexDirection: 'column',
         padding: '10px 0 10px 10px',
       }}
       className={classNames({
         'menu-container': true,
+        'menu-container-en': i18n.language === 'en_US' && collapsed === '0',
       })}
     >
-      <div
-        className={classNames({
-          home: true,
-        })}
-      >
-        {/* <div className='name' onClick={() => history.push('/metric/explorer')} key='overview'> */}
-        <img src='image/logo.svg' alt='' className='logo' />
-        <span >轻云</span>
-        {/* </div> */}
-      </div>
-
-      <Menu
+      {collapsed !== '2' && (
+        <div
+          className={classNames({
+            home: true,
+            collapse: collapsed === '1',
+          })}
+        >
+          {/* <div className='name' onClick={() => history.push('/')} key='overview'>
+            <img src={imgURL} alt='' className='logo' />
+          </div> */}
+          <img src='image/logo.svg' alt='' className='logo' />
+        </div>
+      )}
+      <FloatFcMenu
+        fullModeWidth={i18n.language === 'en_US' ? 180 : undefined}
         items={menus}
-        openKeys={openKeys}
-        onOpenChange={onOpenChange}
+        selectedKeys={defaultSelectedKeys}
         onClick={handleClick}
-        mode="inline"
-      ></Menu>
+        collapsed={collapsed}
+        switchCollapsed={switchCollapsed}
+        quickIcon={<IconFont type='icon-Menu_Search' />}
+        quickActiveIcon={<Icon component={menuIcon.Menu_Search as any} />}
+      />
     </div>
   );
 };

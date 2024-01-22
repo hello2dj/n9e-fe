@@ -14,17 +14,18 @@
  * limitations under the License.
  *
  */
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useContext } from 'react';
 import semver from 'semver';
 import { Space, Alert } from 'antd';
 import { FieldNumberOutlined } from '@ant-design/icons';
 import { useParams } from 'react-router';
 import _ from 'lodash';
+import moment from 'moment';
 import { useTranslation } from 'react-i18next';
 import { GetTmpChartData } from '@/services/metric';
-import { TimeRangePickerWithRefresh, IRawTimeRange } from '@/components/TimeRangePicker';
+import { TimeRangePickerWithRefresh, IRawTimeRange, isMathString } from '@/components/TimeRangePicker';
 import Resolution from '@/components/Resolution';
-import { getAuthorizedDatasourceCates } from '@/components/AdvancedWrap';
+import { CommonStateContext } from '@/App';
 import Renderer from '../dashboard/Renderer/Renderer';
 import { getStepByTimeAndStep } from '../dashboard/utils';
 import './locale';
@@ -32,7 +33,7 @@ import './index.less';
 
 export default function Chart() {
   const { t } = useTranslation('shareChart');
-  const datasourceCates = getAuthorizedDatasourceCates();
+  const { datasourceCateOptions } = useContext(CommonStateContext);
   const { ids } =
     useParams<{
       ids: string;
@@ -61,9 +62,19 @@ export default function Chart() {
         .map((item) => {
           return { ...JSON.parse(item.configs), ref: React.createRef() };
         });
-      datasourceCate.current = _.find(datasourceCates, { value: data[0].dataProps.datasourceCate })?.label;
+      datasourceCate.current = _.find(datasourceCateOptions, { value: data[0].dataProps.datasourceCate })?.label;
       datasourceName.current = data[0].dataProps.datasourceName;
-      setRange(data[0].dataProps.range);
+      const curRange = data[0].dataProps.range;
+      if (curRange) {
+        if (isMathString(curRange?.start) && isMathString(curRange?.end)) {
+          setRange(curRange);
+        } else {
+          setRange({
+            start: moment(curRange?.start),
+            end: moment(curRange?.end),
+          });
+        }
+      }
       setChartData(data);
     });
   };
@@ -86,6 +97,7 @@ export default function Chart() {
                   // refreshTooltip={t('refresh_tip', { num: getStepByTimeAndStep(range, step) })}
                   onChange={setRange}
                   value={range}
+                  dateFormat='YYYY-MM-DD HH:mm:ss'
                 />
               </Space>
             </div>

@@ -41,11 +41,11 @@ export const getSerieTextObj = (value: number | string | null | undefined, stand
       if (type === 'special') {
         return value === match?.special;
       } else if (type === 'range') {
-        if (match?.from && match?.to) {
+        if (_.isNumber(match?.from) && _.isNumber(match?.to)) {
           return value >= match?.from && value <= match?.to;
-        } else if (match?.from) {
+        } else if (_.isNumber(match?.from)) {
           return value >= match?.from;
-        } else if (match?.to) {
+        } else if (_.isNumber(match?.to)) {
           return value <= match?.to;
         }
         return false;
@@ -63,7 +63,7 @@ export const getSerieTextObj = (value: number | string | null | undefined, stand
       return Number(item.value);
     }),
     (item) => {
-      if (item.value && value) {
+      if (_.isNumber(item.value) && value) {
         value = _.toNumber(value) as number;
         if (value >= item.value) {
           matchedThresholdsColor = item.color;
@@ -81,12 +81,35 @@ export const getSerieTextObj = (value: number | string | null | undefined, stand
   };
 };
 
+export const getMappedTextObj = (textValue: string, valueMappings?: IValueMapping[]) => {
+  if (typeof textValue === 'string') {
+    const matchedValueMapping = _.find(valueMappings, (item: any) => {
+      const { type, match } = item;
+      if (type === 'textValue') {
+        return textValue === match?.textValue;
+      }
+      return false;
+    });
+    if (matchedValueMapping) {
+      return {
+        // origin: textValue,
+        text: matchedValueMapping?.result?.text || textValue,
+        color: matchedValueMapping?.result?.color,
+      };
+    }
+  }
+  return {
+    // origin: textValue,
+    text: textValue,
+  };
+};
+
 const getCalculatedValuesBySeries = (series: any[], calc: string, { unit, decimals, dateFormat }, valueMappings?: IValueMapping[], thresholds?: IThresholds) => {
   const values = _.map(series, (serie) => {
     const results = {
-      lastNotNull: () => _.get(_.last(_.filter(serie.data, (item) => item[1] !== null)), 1),
+      lastNotNull: () => _.get(_.last(_.filter(serie.data, (item) => item[1] !== null && !_.isNaN(_.toNumber(item[1])))), 1),
       last: () => _.get(_.last(serie.data), 1),
-      firstNotNull: () => _.get(_.first(_.filter(serie.data, (item) => item[1] !== null)), 1),
+      firstNotNull: () => _.get(_.first(_.filter(serie.data, (item) => item[1] !== null && !_.isNaN(_.toNumber(item[1])))), 1),
       first: () => _.get(_.first(serie.data), 1),
       min: () => getValueAndToNumber(_.minBy(serie.data, (item: any) => _.toNumber(item[1]))),
       max: () => getValueAndToNumber(_.maxBy(serie.data, (item: any) => _.toNumber(item[1]))),
@@ -110,8 +133,9 @@ const getCalculatedValuesBySeries = (series: any[], calc: string, { unit, decima
   return values;
 };
 
-export const getLegendValues = (series: any[], { unit, decimals, dateFormat }, hexPalette: string[]) => {
-  const values = _.map(series, (serie, idx) => {
+export const getLegendValues = (series: any[], { unit, decimals, dateFormat }, hexPalette: string[], stack = false) => {
+  const newSeries = stack ? _.reverse(_.clone(series)) : series;
+  const values = _.map(newSeries, (serie, idx) => {
     const results = {
       max: getValueAndToNumber(_.maxBy(serie.data, (item: any) => _.toNumber(item[1]))),
       min: getValueAndToNumber(_.minBy(serie.data, (item: any) => _.toNumber(item[1]))),

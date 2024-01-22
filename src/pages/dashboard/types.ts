@@ -84,10 +84,16 @@ export interface IOptions {
     displayMode: 'list' | 'table' | 'hidden';
     placement: 'right' | 'bottom';
     columns?: string[];
+    detailName: string;
+    detailUrl: string;
+    behaviour: 'showItem' | 'hideItem';
   };
   tooltip?: {
     mode: 'single' | 'all';
     sort: 'none' | 'asc' | 'desc';
+  };
+  colors?: {
+    scheme: string;
   };
 }
 
@@ -150,6 +156,8 @@ export interface IHexbinStyles {
   colorDomainAuto: boolean;
   colorDomain: number[]; // 自定义 [min, max]
   reverseColorOrder: boolean;
+  detailUrl: string;
+  fontBackground: boolean;
 }
 
 export interface IPieStyles {
@@ -166,6 +174,7 @@ export interface IBarGaugeStyles {
   baseColor: string;
   serieWidth: number;
   sortOrder: 'none' | 'asc' | 'desc';
+  detailUrl: string | undefined;
 }
 
 export interface ITextStyles {
@@ -231,9 +240,24 @@ export interface IVariable {
 }
 
 // IDashboard.configs
-export interface IDashboard {
+export interface IDashboardConfig {
   version: string; // 整个仪表盘使用的版本，遵循版本规范 '1.0.0'
   links: ILink[];
   var: IVariable[]; // 变量配置
   panels: IPanel[];
+  graphTooltip: 'default' | 'sharedCrosshair' | 'sharedTooltip';
+  graphZoom: 'default' | 'updateTimeRange';
+}
+
+export interface IDashboard {
+  create_by: string;
+  favorite: number;
+  id: number;
+  name: string;
+  ident?: string;
+  tags: string;
+  update_at: number;
+  update_by: string;
+  configs: IDashboardConfig;
+  public?: number;
 }

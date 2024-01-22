@@ -14,8 +14,8 @@
  * limitations under the License.
  *
  */
-import React, { useContext, useRef, useState } from 'react';
-import { Button, Input, message, Modal, Select, Space, Row, Col } from 'antd';
+import React, { useContext, useState } from 'react';
+import { Button, Input, message, Modal, Select, Space, Row, Col, Dropdown, Menu } from 'antd';
 import { AlertOutlined, ExclamationCircleOutlined, SearchOutlined, AppstoreOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import _ from 'lodash';
@@ -23,11 +23,18 @@ import PageLayout from '@/components/pageLayout';
 import { deleteAlertEvents } from '@/services/warning';
 import { AutoRefresh } from '@/components/TimeRangePicker';
 import { CommonStateContext } from '@/App';
+import { getProdOptions } from '@/pages/alertRules/Form/components/ProdSelect';
+import DatasourceSelect from '@/components/DatasourceSelect/DatasourceSelect';
+import TimeRangePicker, { IRawTimeRange, getDefaultValue } from '@/components/TimeRangePicker';
 import Card from './card';
 import Table from './Table';
-import { hoursOptions } from './constants';
 import './locale';
 import './index.less';
+
+// @ts-ignore
+import BatchAckBtn from 'plus:/parcels/Event/Acknowledge/BatchAckBtn';
+
+const CACHE_KEY = 'alert_active_events_range';
 
 const { confirm } = Modal;
 export const SeverityColor = ['red', 'orange', 'yellow', 'green'];
@@ -52,9 +59,9 @@ export function deleteAlertEventsModal(ids: number[], onSuccess = () => {}, t) {
 const Event: React.FC = () => {
   const { t } = useTranslation('AlertCurEvents');
   const [view, setView] = useState<'card' | 'list'>('card');
-  const { busiGroups, datasourceList } = useContext(CommonStateContext);
+  const { busiGroups, feats } = useContext(CommonStateContext);
   const [filter, setFilter] = useState<{
-    hours: number;
+    range?: IRawTimeRange;
     cate?: string;
     datasourceIds: number[];
     bgid?: number;
@@ -62,13 +69,29 @@ const Event: React.FC = () => {
     queryContent: string;
     rule_prods: string[];
   }>({
-    hours: 6,
+    range: undefined,
     datasourceIds: [],
     queryContent: '',
     rule_prods: [],
   });
   const [refreshFlag, setRefreshFlag] = useState<string>(_.uniqueId('refresh_'));
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
+  let prodOptions = getProdOptions(feats);
+  if (import.meta.env.VITE_IS_ENT === 'true') {
+    prodOptions = [
+      ...prodOptions,
+      {
+        label: t('AlertHisEvents:rule_prod.firemap'),
+        value: 'firemap',
+        pro: false,
+      },
+      {
+        label: t('AlertHisEvents:rule_prod.northstar'),
+        value: 'northstar',
+        pro: false,
+      },
+    ];
+  }
 
   function renderLeftHeader() {
     return (
@@ -76,20 +99,18 @@ const Event: React.FC = () => {
         <Space>
           <Button icon={<AppstoreOutlined />} onClick={() => setView('card')} />
           <Button icon={<UnorderedListOutlined />} onClick={() => setView('list')} />
-          <Select
-            style={{ minWidth: 80 }}
-            value={filter.hours}
+          <TimeRangePicker
+            allowClear
+            localKey={CACHE_KEY}
+            value={filter.range}
             onChange={(val) => {
               setFilter({
                 ...filter,
-                hours: val,
+                range: val,
               });
             }}
-          >
-            {hoursOptions.map((item) => {
-              return <Select.Option value={item.value}>{t(`hours.${item.value}`)}</Select.Option>;
-            })}
-          </Select>
+            dateFormat='YYYY-MM-DD HH:mm:ss'
+          />
           <Select
             allowClear
             placeholder={t('prod')}
@@ -104,30 +125,25 @@ const Event: React.FC = () => {
             }}
             dropdownMatchSelectWidth={false}
           >
-            <Select.Option value='host'>Host</Select.Option>
-            <Select.Option value='metric'>Metric</Select.Option>
+            {prodOptions.map((item) => {
+              return (
+                <Select.Option value={item.value} key={item.value}>
+                  {item.label}
+                </Select.Option>
+              );
+            })}
           </Select>
-          <Select
-            allowClear
-            mode='multiple'
-            placeholder={t('common:datasource.id')}
-            style={{ minWidth: 100 }}
-            maxTagCount='responsive'
-            dropdownMatchSelectWidth={false}
+          <DatasourceSelect
+            style={{ width: 100 }}
+            filterKey='alertRule'
             value={filter.datasourceIds}
-            onChange={(val) => {
+            onChange={(val: number[]) => {
               setFilter({
                 ...filter,
                 datasourceIds: val,
               });
             }}
-          >
-            {_.map(datasourceList, (item) => (
-              <Select.Option value={item.id} key={item.id}>
-                {item.name}
-              </Select.Option>
-            ))}
-          </Select>
+          />
           <Select
             allowClear
             placeholder={t('common:business_group')}
@@ -186,23 +202,37 @@ const Event: React.FC = () => {
           }}
         >
           {view === 'list' && (
-            <Button
-              danger
-              style={{ marginRight: 8 }}
-              disabled={selectedRowKeys.length === 0}
-              onClick={() =>
-                deleteAlertEventsModal(
-                  selectedRowKeys,
-                  () => {
-                    setSelectedRowKeys([]);
-                    setRefreshFlag(_.uniqueId('refresh_'));
-                  },
-                  t,
-                )
+            <Dropdown
+              overlay={
+                <Menu>
+                  <Menu.Item
+                    disabled={selectedRowKeys.length === 0}
+                    onClick={() =>
+                      deleteAlertEventsModal(
+                        selectedRowKeys,
+                        () => {
+                          setSelectedRowKeys([]);
+                          setRefreshFlag(_.uniqueId('refresh_'));
+                        },
+                        t,
+                      )
+                    }
+                  >
+                    {t('common:btn.batch_delete')}{' '}
+                  </Menu.Item>
+                  <BatchAckBtn
+                    selectedIds={selectedRowKeys}
+                    onOk={() => {
+                      setSelectedRowKeys([]);
+                      setRefreshFlag(_.uniqueId('refresh_'));
+                    }}
+                  />
+                </Menu>
               }
+              trigger={['click']}
             >
-              {t('common:btn.batch_delete')}
-            </Button>
+              <Button style={{ marginRight: 8 }}>{t('batch_btn')}</Button>
+            </Dropdown>
           )}
           <AutoRefresh
             onRefresh={() => {
@@ -215,7 +245,7 @@ const Event: React.FC = () => {
   }
 
   const filterObj = Object.assign(
-    { hours: filter.hours },
+    { range: filter.range },
     filter.datasourceIds.length ? { datasource_ids: filter.datasourceIds } : {},
     filter.severity ? { severity: filter.severity } : {},
     filter.queryContent ? { query: filter.queryContent } : {},
@@ -228,7 +258,15 @@ const Event: React.FC = () => {
       {view === 'card' ? (
         <Card header={renderLeftHeader()} filter={filterObj} refreshFlag={refreshFlag} />
       ) : (
-        <Table header={renderLeftHeader()} filter={filter} filterObj={filterObj} setFilter={setFilter} refreshFlag={refreshFlag} />
+        <Table
+          header={renderLeftHeader()}
+          filter={filter}
+          filterObj={filterObj}
+          setFilter={setFilter}
+          refreshFlag={refreshFlag}
+          selectedRowKeys={selectedRowKeys}
+          setSelectedRowKeys={setSelectedRowKeys}
+        />
       )}
     </PageLayout>
   );

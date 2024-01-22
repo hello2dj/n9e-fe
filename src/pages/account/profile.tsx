@@ -38,15 +38,19 @@ export default function Profile() {
   };
 
   return (
-    <PageLayout title={t('title')}>
-      <Tabs activeKey={tab} className='profile' onChange={handleChange}>
-        <TabPane tab={t('profile.title')} key='info'>
-          <Info />
-        </TabPane>
-        <TabPane tab={t('password.title')} key='pwd'>
-          <ChangePassword />
-        </TabPane>
-      </Tabs>
+    <PageLayout title={"告警地址设置"}>
+      <div>
+        <div>
+          <Tabs activeKey={tab} className='profile' onChange={handleChange}>
+            <TabPane tab={"告警地址设置"} key='info'>
+              <Info />
+            </TabPane>
+            {/* <TabPane tab={t('password.title')} key='pwd'>
+              <ChangePassword />
+            </TabPane> */}
+          </Tabs>
+        </div>
+      </div>
     </PageLayout>
   );
 }

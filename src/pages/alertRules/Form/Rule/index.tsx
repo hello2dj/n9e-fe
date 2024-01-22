@@ -15,30 +15,36 @@
  *
  */
 
-import React from 'react';
+import React, { useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, Form } from 'antd';
 import { getBrainParams } from '@/services/warning';
+import { CommonStateContext } from '@/App';
 import { panelBaseProps } from '../../constants';
-import { Host, Metric, Log, Anomaly } from './Rule';
+import { Host, Metric, Log } from './Rule';
 import { getDefaultValuesByProd } from '../utils';
 import ProdSelect from '../components/ProdSelect';
+// @ts-ignore
+import PlusAlertRule from 'plus:/parcels/AlertRule';
 
-export default function Rule({ form }) {
+export default function Rule({ form }) {  
   const { t } = useTranslation('alertRules');
+  const { isPlus } = useContext(CommonStateContext);
 
   return (
     <Card {...panelBaseProps} title={t('rule_configs')}>
       <ProdSelect
-        onChange={(e) => {
-          const val = e.target.value;
-          if (val === 'anomaly') {
+        onChange={(prod) => {
+          if (prod === 'anomaly') {
             // 获取默认 brain 参数，用于初始化智能告警的设置
+            form.setFieldsValue({
+              prod: 'anomaly',
+            });
             getBrainParams().then((res) => {
-              form.setFieldsValue(getDefaultValuesByProd(val, res));
+              form.setFieldsValue(getDefaultValuesByProd(prod, res));
             });
           } else {
-            form.setFieldsValue(getDefaultValuesByProd(val, {}));
+            form.setFieldsValue(getDefaultValuesByProd(prod, {}, isPlus));
           }
         }}
       />
@@ -48,18 +54,17 @@ export default function Rule({ form }) {
       <Form.Item shouldUpdate={(prevValues, currentValues) => prevValues.prod !== currentValues.prod}>
         {() => {
           const prod = form.getFieldValue('prod');
+          const cate = form.getFieldValue('cate');
           if (prod === 'host') {
             return <Host />;
           }
           if (prod === 'metric') {
-            return <Metric />;
+            return <Metric form={form} />;
           }
           if (prod === 'logging') {
-            return <Log />;
+            return <Log form={form} />;
           }
-          if (prod === 'anomaly') {
-            return <Anomaly />;
-          }
+          return <PlusAlertRule prod={prod} form={form} />;
         }}
       </Form.Item>
     </Card>

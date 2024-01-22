@@ -21,6 +21,7 @@ import type { MetricListRes, strategyGroup, strategyStatus, TagKeysRes, TagValue
 import { PAGE_SIZE } from '@/utils/constant';
 import React from 'react';
 import queryString from 'query-string';
+import { N9E_PATHNAME } from '@/utils/constant';
 
 // 获得策略分组列表
 export const getStrategyGroupList = function (query?: string, p = 1) {
@@ -64,10 +65,20 @@ export const updateStrategyGroup = function (data: Partial<strategyGroup> & { id
   });
 };
 
-//// 获取策略列表
+// 获取策略列表
 export const getStrategyGroupSubList = function (params: { id: number }) {
   return request(`/api/n9e/busi-group/${params.id}/alert-rules`, {
     method: RequestMethod.Get,
+  });
+};
+
+// 查询多个业务组的规则列表 2023-11-24 新增
+export const getBusiGroupsAlertRules = function (gids: string) {
+  return request('/api/n9e/busi-groups/alert-rules', {
+    method: RequestMethod.Get,
+    params: {
+      gids,
+    },
   });
 };
 
@@ -171,9 +182,16 @@ export const batchDeleteStrategy = function (ruleId, ids: Array<number>) {
 };
 
 export const prometheusQuery = function (data, datasourceValue): Promise<any> {
-  return request(`/api/n9e/proxy/${datasourceValue}/api/v1/query`, {
+  return request(`/api/${N9E_PATHNAME}/proxy/${datasourceValue}/api/v1/query`, {
     method: RequestMethod.Get,
     params: data,
+  });
+};
+
+export const validateRule = function (data: any[]) {
+  return request(`/api/n9e/busi-group/alert-rule/validate`, {
+    method: RequestMethod.Put,
+    data: data,
   });
 };
 
@@ -189,6 +207,19 @@ export const updateAlertRules = function (
   busiId: number,
 ) {
   return request(`/api/n9e/busi-group/${busiId}/alert-rules/fields`, {
+    method: RequestMethod.Put,
+    data: data,
+  });
+};
+
+export const updateServiceCal = function (
+  data: {
+    ids: React.Key[];
+    service_cal_ids: number[];
+  },
+  busiId: number,
+) {
+  return request(`/api/n9e-plus/busi-group/${busiId}/alert-rules/service-cal`, {
     method: RequestMethod.Put,
     data: data,
   });
@@ -214,22 +245,28 @@ export const getAlertEvents = function (data) {
  * 获取全量告警历史页面
  */
 export const getHistoryEvents = function (data) {
-  console.log(data);
-
   return request(`/api/n9e/history-alert-events`, {
     method: RequestMethod.Get,
     params: data,
   });
 };
 // 获取告警详情
-export function getAlertEventsById(busiId, eventId) {
-  return request(`/api/n9e/alert-cur-event/${eventId}`, {
+export function getAlertEventsById(eventId) {
+  let url = '/api/n9e/alert-cur-event';
+  if (import.meta.env.VITE_IS_ENT === 'true') {
+    url = '/api/n9e-plus/alert-cur-event';
+  }
+  return request(`${url}/${eventId}`, {
     method: RequestMethod.Get,
   });
 }
 
-export function getHistoryEventsById(busiId, eventId) {
-  return request(`/api/n9e/alert-his-event/${eventId}`, {
+export function getHistoryEventsById(eventId) {
+  let url = '/api/n9e/alert-his-event';
+  if (import.meta.env.VITE_IS_ENT === 'true') {
+    url = '/api/n9e-plus/alert-his-event';
+  }
+  return request(`${url}/${eventId}`, {
     method: RequestMethod.Get,
   });
 }
@@ -355,7 +392,11 @@ export const getAlertCards = function (params) {
 };
 
 export const getCardDetail = function (ids) {
-  return request('/api/n9e/alert-cur-events/card/details', {
+  let url = '/api/n9e/alert-cur-events/card/details';
+  if (import.meta.env.VITE_IS_PRO === 'true') {
+    url = '/api/n9e-plus/alert-cur-events/card/details';
+  }
+  return request(url, {
     method: RequestMethod.Post,
     data: { ids },
   });
@@ -397,15 +438,8 @@ export const getBrainJobs = function (id) {
   });
 };
 
-export function getBrainLicense() {
-  return request('/api/fc-brain/license', {
-    method: RequestMethod.Get,
-    silence: true,
-  });
-}
-
 export function getDsQuery(datasourceValue: number, requestBody) {
-  return request(`/api/n9e/proxy/${datasourceValue}/_msearch`, {
+  return request(`/api/${N9E_PATHNAME}/proxy/${datasourceValue}/_msearch`, {
     method: RequestMethod.Post,
     data: requestBody,
     headers: {
@@ -430,13 +464,22 @@ export function getLogQuery(params) {
 }
 
 export function getIndices(datasourceValue: number) {
-  return request(`/api/n9e/proxy/${datasourceValue}/_cat/indices`, {
+  return request(`/api/${N9E_PATHNAME}/proxy/${datasourceValue}/_cat/indices`, {
     method: RequestMethod.Get,
     params: {
       format: 'json',
     },
   }).then((res) => {
     return _.sortBy(_.compact(_.map(res, 'index')));
+  });
+}
+
+export function getESVersion(datasourceValue: number) {
+  return request(`/api/${N9E_PATHNAME}/proxy/${datasourceValue}/`, {
+    method: RequestMethod.Get,
+  }).then((res) => {
+    const dat = _.get(res, 'version.number');
+    return dat;
   });
 }
 

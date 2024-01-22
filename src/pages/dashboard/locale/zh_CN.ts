@@ -8,6 +8,10 @@ const zh_CN = {
   refresh_tip: '刷新间隔小于 step({{num}}s) 将不会更新数据',
   refresh_btn: '刷新',
   share_btn: '分享',
+  export_btn: '导出（CSV）',
+  clear_cache_btn: '清除缓存',
+  clear_cache_btn_tip: '清除表格列宽缓存，刷新页面后生效',
+  inspect_btn: '排查',
   public: {
     name: '公开',
     0: {
@@ -29,7 +33,11 @@ const zh_CN = {
     import: '导入仪表盘 JSON',
     label: '仪表盘 JSON',
     import_grafana: '导入 Grafana 仪表盘 JSON',
-    import_grafana_tip: '目前只支持导入 v8+ 版本的仪表盘配置，导入完的图表只支持夜莺目前支持的图表类型和功能',
+    import_grafana_tip: '导入完的图表只支持夜莺目前支持的图表类型和功能，<a>问题反馈</a>',
+    import_grafana_tip_version_error: '不支持导入小于 v7 版本的仪表盘配置',
+    import_grafana_tip_version_warning: '导入小于 v8 版本的仪表盘配置，可能会有部分图表不支持，以及图表无法正常渲染问题',
+    continueToImport: '继续导入',
+    noSelected: '请选择仪表盘',
   },
   link: {
     title: '仪表盘链接',
@@ -71,6 +79,8 @@ const zh_CN = {
     type: '变量类型',
     hide: '隐藏变量',
     definition: '变量定义',
+    definition_msg1: '请输入变量定义',
+    definition_msg2: '变量定义必须是合法的JSON',
     reg: '正则',
     reg_tip: '可选，可通过正则来过滤可选项，或提取值',
     multi: '多选',
@@ -78,6 +88,7 @@ const zh_CN = {
     allValue: '自定义全选值',
     textbox: {
       defaultValue: '默认值',
+      defaultValue_tip: '可选，仅作为初次加载时的默认值',
     },
     custom: {
       definition: '逗号分割的自定义值',
@@ -89,6 +100,8 @@ const zh_CN = {
     datasource: {
       definition: '数据源类型',
       defaultValue: '默认值',
+      regex: '数据源过滤',
+      regex_tip: '可选，可通过正则来过滤可选项',
     },
   },
   row: {
@@ -119,6 +132,12 @@ const zh_CN = {
         isNewBlank: '是否新窗口打开',
       },
       description: '备注',
+      repeatOptions: {
+        title: '图表重复',
+        byVariable: '变量',
+        byVariableTip: '根据变量的值来重复图表',
+        maxPerRow: '每行最多显示',
+      },
     },
     options: {
       legend: {
@@ -135,6 +154,11 @@ const zh_CN = {
         sum: '汇总值',
         last: '当前值',
         columns: '显示列',
+        behaviour: {
+          label: '单击触发行为',
+          showItem: '显示项目',
+          hideItem: '隐藏项目',
+        },
       },
       thresholds: {
         title: '阈值',
@@ -153,14 +177,21 @@ const zh_CN = {
           <1>特殊值Null说明: 匹配值为 null 或 undefined 或 no data</1>
         `,
         type_map: {
-          special: '固定值',
+          special: '固定值(数值)',
+          textValue: '固定值(文本值)',
           range: '范围值',
           specialValue: '特殊值',
         },
+        value_placeholder: '精准匹配的值',
         text: '显示文字',
         text_placeholder: '可选',
         color: '颜色',
         operations: '操作',
+      },
+      colors: {
+        name: '颜色设置',
+        scheme: '颜色方案',
+        reverse: '反转颜色',
       },
     },
     standardOptions: {
@@ -179,11 +210,22 @@ const zh_CN = {
       decimals: '小数位数',
     },
     overrides: {
-      matcher: '查询条件名称',
+      matcher: {
+        id: '匹配类型',
+        byFrameRefID: {
+          option: '根据查询条件名称',
+          name: '查询条件名称',
+        },
+        byName: {
+          option: '根据字段名',
+          name: '字段名',
+        },
+      },
     },
     custom: {
       title: '图表样式',
       calc: '取值计算',
+      calc_tip: '时序数据需要对所有时间点数据做取值计算，非时序数据忽略此设置',
       maxValue: '最大值',
       baseColor: '基础颜色',
       serieWidth: '序列名宽度',
@@ -195,6 +237,8 @@ const zh_CN = {
       background: '背景',
       colorMode: '颜色模式',
       valueField: '值字段',
+      valueField_tip: 'Value 是保留关键字，作为时序数据取值计算后的字段名',
+      valueField_tip2: '需选择值为数值类型的字段',
       colSpan: '每行最多显示',
       textSize: {
         title: '标题字体大小',
@@ -204,6 +248,14 @@ const zh_CN = {
       reverseColorOrder: '反转颜色', // hexbin
       colorDomainAuto: '自动 min/max 值', // hexbin
       colorDomainAuto_tip: '默认自动从 series 里面取 min max 值', // hexbin
+      fontBackground: '文字背景色', // hexbin
+      detailName: '链接名称',
+      detailUrl: '链接地址',
+      stat: {
+        graphMode: '图表模式',
+        none: '不显示',
+        area: '迷你图',
+      },
       pie: {
         legengPosition: '图例位置', // pie
         max: '最多展示块数',
@@ -224,6 +276,11 @@ const zh_CN = {
         aggrDimension: '显示维度',
         sortColumn: '默认排序列',
         sortOrder: '默认排序',
+        link: {
+          mode: '链接模式',
+          cellLink: '单元格链接',
+          appendLinkColumn: '追加链接列',
+        },
       },
       text: {
         textColor: '文字颜色',
@@ -265,10 +322,34 @@ const zh_CN = {
         stack: '堆叠',
         stack_noraml: '开启',
         stack_off: '关闭',
+        yAxis: {
+          title: 'Y轴设置',
+          rightYAxis: {
+            label: '右侧Y轴显示',
+            noraml: '开启',
+            off: '关闭',
+          },
+        },
       },
       iframe: {
         src: 'iframe 地址',
       },
+      heatmap: {
+        xAxisField: 'X轴',
+        yAxisField: 'Y轴',
+        valueField: '数值列',
+      },
+      barchart: {
+        xAxisField: 'X轴',
+        yAxisField: 'Y轴',
+        colorField: '颜色字段',
+        barMaxWidth: '条形最大宽度',
+      },
+    },
+    inspect: {
+      title: '排查',
+      query: '查询',
+      json: '图表配置',
     },
   },
   export: {
@@ -279,14 +360,59 @@ const zh_CN = {
     transform: '数据转换',
     datasource_placeholder: '请选择数据源',
     datasource_msg: '请选择数据源',
-    prometheus: {
-      time: '时间选择',
-      time_tip: '可指定时间范围，默认为仪表盘全局时间范围',
-      step_tip: '可指定 step，默认为仪表盘全局 step',
-    },
+    time: '时间选择',
+    time_tip: '可指定时间范围，默认为仪表盘全局时间范围',
   },
   detail: {
     datasource_empty: '没有数据源信息，请先配置数据源',
+    invalidTimeRange: '无效的 __from 和 __to 值',
+    invalidDatasource: '无效的数据源',
+    fullscreen: {
+      notification: {
+        esc: '按 ESC 键退出全屏模式',
+        theme: '主题切换',
+      },
+    },
+  },
+  settings: {
+    graphTooltip: {
+      label: '提示信息 (Tooltip)',
+      tip: '控制所有图表的提示信息 (Tooltip) 行为',
+      default: '默认',
+      sharedCrosshair: '共享十字线',
+      sharedTooltip: '共享提示信息 (Tooltip)',
+    },
+    graphZoom: {
+      label: '缩放行为',
+      tip: '控制所有图表的缩放行为',
+      default: '默认',
+      updateTimeRange: '更新时间范围',
+    },
+  },
+  visualizations: {
+    timeseries: '时序图',
+    barchart: '柱状图',
+    stat: '指标值',
+    table: '表格',
+    pie: '饼图',
+    hexbin: '蜂窝图',
+    barGauge: '排行榜',
+    text: '文本卡片',
+    gauge: '仪表图',
+    heatmap: '色块图',
+    iframe: '内嵌文档(iframe)',
+    row: '分组',
+  },
+  calcs: {
+    lastNotNull: '最后一个非空值',
+    last: '最后一个值',
+    firstNotNull: '第一个非空值',
+    first: '第一个值',
+    min: '最小值',
+    max: '最大值',
+    avg: '平均值',
+    sum: '总和',
+    count: '数量',
   },
 };
 export default zh_CN;

@@ -18,11 +18,7 @@ function getApi(path: string) {
   const prefix = '/api/n9e/busi-group';
   return (busiGroup: string | number) => {
     return `${prefix}/${busiGroup}${path}`;
-  }
-}
-
-export const isNoPerm = (err: Error) => {
-  return (err && err.message.includes("没有权限"))
+  };
 }
 
 const api = {

@@ -19,19 +19,18 @@ import { useTranslation } from 'react-i18next';
 import { useHistory, Link } from 'react-router-dom';
 import _ from 'lodash';
 import moment from 'moment';
-import { Table, Tag, Switch, Modal, Space, Button, Row, Col, Radio, message, Select } from 'antd';
+import { Table, Tag, Switch, Modal, Space, Button, Row, Col, message, Select, Tooltip } from 'antd';
 import { ColumnType } from 'antd/lib/table';
-import AdvancedWrap from '@/components/AdvancedWrap';
-import { Pure as DatasourceSelect } from '@/components/DatasourceSelect';
 import RefreshIcon from '@/components/RefreshIcon';
 import SearchInput from '@/components/BaseSearchInput';
 import usePagination from '@/components/usePagination';
-import { getStrategyGroupSubList, updateAlertRules, deleteStrategy } from '@/services/warning';
+import { getBusiGroupsAlertRules, updateAlertRules, deleteStrategy } from '@/services/warning';
 import { CommonStateContext } from '@/App';
 import { priorityColor } from '@/utils/constant';
+import Tags from '@/components/Tags';
+import { DatasourceSelect, ProdSelect } from '@/components/DatasourceSelect';
 import { AlertRuleType, AlertRuleStatus } from '../types';
 import MoreOperations from './MoreOperations';
-import { ruleTypeOptions } from '../Form/constants';
 
 interface ListProps {
   bgid?: number;
@@ -46,7 +45,7 @@ interface Filter {
 }
 
 export default function List(props: ListProps) {
-  const { bgid } = props;
+  const { businessGroup, busiGroups } = useContext(CommonStateContext);
   const { t } = useTranslation('alertRules');
   const history = useHistory();
   const { datasourceList } = useContext(CommonStateContext);
@@ -56,127 +55,151 @@ export default function List(props: ListProps) {
   const [selectedRows, setSelectedRows] = useState<AlertRuleType<any>[]>([]);
   const [data, setData] = useState<AlertRuleType<any>[]>([]);
   const [loading, setLoading] = useState(false);
-  const columns: ColumnType<AlertRuleType<any>>[] = [
-    {
-      title: t('common:datasource.type'),
-      dataIndex: 'cate',
-    },
-    {
-      title: t('common:datasource.name'),
-      dataIndex: 'datasource_ids',
-      render: (value, record) => {
-        if (!record.datasource_ids) return '-';
-        return (
-          <div>
-            {_.map(record.datasource_ids, (item) => {
-              if (item === 0) {
-                return (
-                  <Tag color='purple' key={item}>
-                    $all
-                  </Tag>
-                );
-              }
-              const name = _.find(datasourceList, { id: item })?.name;
-              if (!name) return '';
-              return (
-                <Tag color='purple' key={item}>
-                  {name}
-                </Tag>
-              );
-            })}
-          </div>
-        );
+  const columns: ColumnType<AlertRuleType<any>>[] = _.concat(
+    businessGroup.isLeaf
+      ? []
+      : ([
+          {
+            title: t('common:business_group'),
+            dataIndex: 'group_id',
+            width: 100,
+            render: (id) => {
+              return _.find(busiGroups, { id })?.name;
+            },
+          },
+        ] as any),
+    [
+      {
+        title: t('common:datasource.type'),
+        dataIndex: 'cate',
+        width: 100,
       },
-    },
-    {
-      title: t('severity'),
-      dataIndex: 'severities',
-      render: (data) => {
-        return _.map(data, (severity) => {
+      {
+        title: t('common:datasource.name'),
+        dataIndex: 'datasource_ids',
+        width: 100,
+        ellipsis: {
+          showTitle: false,
+        },
+        render(value) {
+          if (!value) return '-';
           return (
-            <Tag key={severity} color={priorityColor[severity - 1]}>
-              S{severity}
-            </Tag>
+            <Tags
+              width={70}
+              data={_.compact(
+                _.map(value, (item) => {
+                  if (item === 0) return '$all';
+                  const name = _.find(datasourceList, { id: item })?.name;
+                  if (!name) return '';
+                  return name;
+                }),
+              )}
+            />
           );
-        });
+        },
       },
-    },
-    {
-      title: t('common:table.name'),
-      dataIndex: 'name',
-      render: (data, record) => {
-        return (
-          <Link
-            className='table-text'
-            to={{
-              pathname: `/alert-rules/edit/${record.id}`,
-            }}
-          >
-            {data}
-          </Link>
-        );
+      {
+        title: t('name_severities_appendtags'),
+        dataIndex: 'name',
+        render: (data, record) => {
+          return (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+              }}
+            >
+              <div>
+                <Link
+                  className='table-text'
+                  to={{
+                    pathname: `/alert-rules/edit/${record.id}`,
+                  }}
+                >
+                  {data}
+                </Link>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 4,
+                }}
+              >
+                {_.map(record.severities, (severity) => {
+                  return (
+                    <Tag
+                      key={severity}
+                      color={priorityColor[severity - 1]}
+                      style={{
+                        marginRight: 0,
+                      }}
+                    >
+                      S{severity}
+                    </Tag>
+                  );
+                })}
+                {_.map(record.append_tags, (item) => {
+                  return (
+                    <Tooltip key={item} title={item}>
+                      <Tag color='purple' style={{ maxWidth: '100%', marginRight: 0 }}>
+                        <div
+                          style={{
+                            maxWidth: 'max-content',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {item}
+                        </div>
+                      </Tag>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        },
       },
-    },
-    {
-      title: t('notify_groups'),
-      dataIndex: 'notify_groups_obj',
-      width: 100,
-      render: (data) => {
-        return (
-          (data.length &&
-            data.map(
-              (
-                user: {
-                  nickname: string;
-                  username: string;
-                } & { name: string },
-                index: number,
-              ) => {
-                return (
-                  <Tag color='purple' key={index}>
-                    {user.nickname || user.username || user.name}
-                  </Tag>
-                );
-              },
-            )) || <div></div>
-        );
+      {
+        title: t('notify_groups'),
+        dataIndex: 'notify_groups_obj',
+        width: 140,
+        render: (data) => {
+          return (
+            <Tags
+              width={110}
+              data={_.map(data, (user) => {
+                return user.nickname || user.username || user.name;
+              })}
+            />
+          );
+        },
       },
-    },
-    {
-      title: t('append_tags'),
-      dataIndex: 'append_tags',
-      render: (data) => {
-        const array = data || [];
-        return (
-          (array.length &&
-            array.map((tag: string, index: number) => {
-              return (
-                <Tag color='purple' key={index}>
-                  {tag}
-                </Tag>
-              );
-            })) || <div></div>
-        );
+      {
+        title: t('common:table.update_at'),
+        dataIndex: 'update_at',
+        width: 90,
+        render: (text: string) => {
+          return <div className='table-text'>{moment.unix(Number(text)).format('YYYY-MM-DD HH:mm:ss')}</div>;
+        },
       },
-    },
-    {
-      title: t('common:table.update_at'),
-      dataIndex: 'update_at',
-      width: 120,
-      render: (text: string) => {
-        return <div className='table-text'>{moment.unix(Number(text)).format('YYYY-MM-DD HH:mm:ss')}</div>;
+      {
+        title: t('common:table.update_by'),
+        dataIndex: 'update_by',
+        width: 65,
       },
-    },
-    {
-      title: t('common:table.enabled'),
-      dataIndex: 'disabled',
-      render: (disabled, record) => (
-        <Switch
-          checked={disabled === AlertRuleStatus.Enable}
-          size='small'
-          onChange={() => {
-            const { id, disabled } = record;
-            bgid &&
+      {
+        title: t('common:table.enabled'),
+        dataIndex: 'disabled',
+        width: 65,
+        render: (disabled, record) => (
+          <Switch
+            checked={disabled === AlertRuleStatus.Enable}
+            size='small'
+            onChange={() => {
+              const { id, disabled } = record;
               updateAlertRules(
                 {
                   ids: [id],
@@ -184,60 +207,70 @@ export default function List(props: ListProps) {
                     disabled: !disabled ? 1 : 0,
                   },
                 },
-                bgid,
+                record.group_id,
               ).then(() => {
-                getAlertRules();
+                fetchData();
               });
-          }}
-        />
-      ),
-    },
-    {
-      title: t('common:table.operations'),
-      dataIndex: 'operator',
-      width: 120,
-      render: (data, record: any) => {
-        return (
-          <div className='table-operator-area'>
-            <Link
-              className='table-operator-area-normal'
-              style={{ marginRight: 8 }}
-              to={{
-                pathname: `/alert-rules/edit/${record.id}?mode=clone`,
-              }}
-              target='_blank'
-            >
-              {t('common:btn.clone')}
-            </Link>
-            <div
-              className='table-operator-area-warning'
-              onClick={() => {
-                Modal.confirm({
-                  title: t('common:confirm.delete'),
-                  onOk: () => {
-                    bgid &&
-                      deleteStrategy([record.id], bgid).then(() => {
-                        message.success(t('common:success.delete'));
-                        getAlertRules();
-                      });
-                  },
-
-                  onCancel() { },
-                });
-              }}
-            >
-              {t('common:btn.delete')}
-            </div>
-            {record.algorithm === 'holtwinters' && (
-              <div>
-                <Link to={{ pathname: `/alert-rules/brain/${record.id}` }}>训练结果</Link>
-              </div>
-            )}
-          </div>
-        );
+            }}
+          />
+        ),
       },
-    },
-  ];
+      {
+        title: t('common:table.operations'),
+        width: 160,
+        render: (record: any) => {
+          return (
+            <Space>
+              <Link
+                className='table-operator-area-normal'
+                to={{
+                  pathname: `/alert-rules/edit/${record.id}?mode=clone`,
+                }}
+                target='_blank'
+              >
+                {t('common:btn.clone')}
+              </Link>
+              <Button
+                size='small'
+                type='link'
+                danger
+                style={{
+                  padding: 0,
+                }}
+                onClick={() => {
+                  Modal.confirm({
+                    title: t('common:confirm.delete'),
+                    onOk: () => {
+                      deleteStrategy([record.id], record.group_id).then(() => {
+                        message.success(t('common:success.delete'));
+                        fetchData();
+                      });
+                    },
+
+                    onCancel() {},
+                  });
+                }}
+              >
+                {t('common:btn.delete')}
+              </Button>
+              {record.prod === 'anomaly' && (
+                <div>
+                  <Link to={{ pathname: `/alert-rules/brain/${record.id}` }}>{t('brain_result_btn')}</Link>
+                </div>
+              )}
+            </Space>
+          );
+        },
+      },
+    ],
+  );
+  const includesProm = (ids?: number[]) => {
+    return _.some(ids, (id) => {
+      return _.some(datasourceList, (item) => {
+        if (item.id === id) return item.plugin_type === 'prometheus';
+      });
+    });
+  };
 
   const filterData = () => {
     return data.filter((item) => {
@@ -245,7 +278,6 @@ export default function List(props: ListProps) {
       const lowerCaseQuery = search?.toLowerCase() || '';
       return (
         (item.name.toLowerCase().indexOf(lowerCaseQuery) > -1 || item.append_tags.join(' ').toLowerCase().indexOf(lowerCaseQuery) > -1) &&
-        ((cate && cate === item.cate) || !cate) &&
         ((prod && prod === item.prod) || !prod) &&
         ((item.severities &&
           _.some(item.severities, (severity) => {
@@ -254,7 +286,7 @@ export default function List(props: ListProps) {
           })) ||
           !item.severities) &&
         (_.some(item.datasource_ids, (id) => {
-          if (id === 0) return true;
+          if (includesProm(datasourceIds) && id === 0) return true;
           return _.includes(datasourceIds, id);
         }) ||
           datasourceIds?.length === 0 ||
@@ -262,25 +294,22 @@ export default function List(props: ListProps) {
       );
     });
   };
-  const getAlertRules = async () => {
-    if (!bgid) {
-      return;
-    }
-    setLoading(true);
-    const { success, dat } = await getStrategyGroupSubList({ id: bgid });
-    if (success) {
-      setData(dat || []);
-      setLoading(false);
+  const fetchData = async () => {
+    if (businessGroup.ids) {
+      setLoading(true);
+      const { success, dat } = await getBusiGroupsAlertRules(businessGroup.ids);
+      if (success) {
+        setData(dat || []);
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    if (bgid) {
-      getAlertRules();
-    }
-  }, [bgid]);
+    fetchData();
+  }, [businessGroup.ids]);
 
-  if (!bgid) return null;
+  if (!businessGroup.ids) return null;
   const filteredData = filterData();
 
   return (
@@ -290,85 +319,30 @@ export default function List(props: ListProps) {
           <Space>
             <RefreshIcon
               onClick={() => {
-                getAlertRules();
+                fetchData();
               }}
             />
-            <AdvancedWrap var='VITE_IS_ALERT_AI,VITE_IS_ALERT_ES'>
-              {(isShow) => {
-                let options = ruleTypeOptions;
-                if (isShow[0]) {
-                  options = [
-                    ...options,
-                    {
-                      label: 'Anomaly',
-                      value: 'anomaly',
-                    },
-                  ];
-                }
-                if (isShow[1]) {
-                  options = [
-                    ...options,
-                    {
-                      label: 'Log',
-                      value: 'logging',
-                    },
-                  ];
-                }
-                return (
-                  <Select
-                    style={{ width: 90 }}
-                    placeholder={t('prod')}
-                    allowClear
-                    value={filter.prod}
-                    onChange={(val) => {
-                      setFilter({
-                        ...filter,
-                        prod: val,
-                      });
-                    }}
-                  >
-                    {options.map((item) => {
-                      return (
-                        <Select.Option value={item.value} key={item.value}>
-                          {item.label}
-                        </Select.Option>
-                      );
-                    })}
-                  </Select>
-                );
+            <ProdSelect
+              style={{ width: 90 }}
+              value={filter.prod}
+              onChange={(val) => {
+                setFilter({
+                  ...filter,
+                  prod: val,
+                });
               }}
-            </AdvancedWrap>
-            <AdvancedWrap var='VITE_IS_ALERT_ES'>
-              {(isShow) => {
-                return (
-                  <DatasourceSelect
-                    datasourceCate={filter.cate}
-                    onDatasourceCateChange={(val) => {
-                      setFilter({
-                        ...filter,
-                        cate: val,
-                      });
-                    }}
-                    datasourceValue={filter.datasourceIds}
-                    datasourceValueMode='multiple'
-                    onDatasourceValueChange={(val: number[]) => {
-                      setFilter({
-                        ...filter,
-                        datasourceIds: val,
-                      });
-                    }}
-                    filterCates={(cates) => {
-                      return _.filter(cates, (item) => {
-                        if (item.value === 'elasticsearch') {
-                          return isShow[0];
-                        }
-                        return true;
-                      });
-                    }}
-                  />
-                );
+            />
+            <DatasourceSelect
+              style={{ width: 100 }}
+              filterKey='alertRule'
+              value={filter.datasourceIds}
+              onChange={(val) => {
+                setFilter({
+                  ...filter,
+                  datasourceIds: val,
+                });
               }}
-            </AdvancedWrap>
+            />
             <Select
               mode='multiple'
               placeholder={t('severity')}
@@ -395,25 +369,29 @@ export default function List(props: ListProps) {
                 });
               }}
               allowClear
+              style={{ width: 300 }}
             />
           </Space>
         </Col>
-        <Col>
-          <Space>
-            <Button
-              type='primary'
-              onClick={() => {
-                history.push(`/alert-rules/add/${bgid}`);
-              }}
-              className='strategy-table-search-right-create'
-            >
-              {t('common:btn.add')}
-            </Button>
-            <MoreOperations bgid={bgid} selectRowKeys={selectRowKeys} selectedRows={selectedRows} getAlertRules={getAlertRules} />
-          </Space>
-        </Col>
+        {businessGroup.isLeaf && (
+          <Col>
+            <Space>
+              <Button
+                type='primary'
+                onClick={() => {
+                  history.push(`/alert-rules/add/${businessGroup.id}`);
+                }}
+                className='strategy-table-search-right-create'
+              >
+                {t('common:btn.add')}
+              </Button>
+              {businessGroup.id && <MoreOperations bgid={businessGroup.id} selectRowKeys={selectRowKeys} selectedRows={selectedRows} getAlertRules={fetchData} />}
+            </Space>
+          </Col>
+        )}
       </Row>
       <Table
+        tableLayout='fixed'
         size='small'
         rowKey='id'
         pagination={pagination}

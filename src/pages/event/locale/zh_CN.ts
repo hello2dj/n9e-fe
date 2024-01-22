@@ -24,6 +24,15 @@ const zh_CN = {
   aggregate_rule_name: '规则名称',
   public: '公开',
   isPublic: '是否公开',
+  status: '是否认领',
+  status_1: '已认领',
+  status_0: '未认领',
+  batch_btn: '批量操作',
+  batch_claim: '批量认领',
+  batch_unclaim: '批量取消认领',
+  claim: '认领',
+  unclaim: '取消认领',
+  claimant: '认领人',
 
   delete_confirm: {
     title: '删除告警事件',
@@ -33,9 +42,9 @@ const zh_CN = {
   detail: {
     title: '告警详情',
     card_title: '告警事件详情',
-    buisness_not_exist: '该应用已删除或无查看权限',
+    buisness_not_exist: '该业务组已删除或无查看权限',
     rule_name: '规则标题',
-    group_name: '应用',
+    group_name: '业务组',
     rule_note: '规则备注',
     cate: '数据源类型',
     datasource_id: '数据源',
@@ -55,10 +64,11 @@ const zh_CN = {
     notify_groups_obj: '告警接收组',
     callbacks: '回调地址',
     runbook_url: '预案链接',
-
+    detail_url: '详情链接',
     host: {
       trigger: '触发',
     },
+    trigger: '触发',
   },
 };
 export default zh_CN;

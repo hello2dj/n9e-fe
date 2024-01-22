@@ -20,6 +20,7 @@ export default function Channels() {
   return (
     <div className='channels-container'>
       <Table<ChannelType>
+        rowKey='ident'
         size='small'
         tableLayout='fixed'
         pagination={false}
@@ -59,19 +60,19 @@ export default function Channels() {
             key: 'ident',
           },
           {
-            title: t('channels.hide'),
+            title: t('channels.enabled'),
             dataIndex: 'hide',
             key: 'hide',
             render: (val: boolean, record) => {
               return (
                 <Switch
-                  checked={val}
+                  checked={!val}
                   onChange={(checked) => {
                     const newData = _.map(data, (item) => {
                       if (item.ident === record.ident) {
                         return {
                           ...item,
-                          hide: checked,
+                          hide: !checked,
                         };
                       }
                       return item;
@@ -105,13 +106,13 @@ export default function Channels() {
                           });
                           putNotifyChannels(newData).then(() => {
                             setData(newData);
-                            message.success(t('common:success.modify'));
+                            message.success(t('common:success.edit'));
                           });
                         },
                       });
                     }}
                   >
-                    {t('common:btn.modify')}
+                    {t('common:btn.edit')}
                   </a>
                   {!reocrd.built_in && (
                     <Popconfirm

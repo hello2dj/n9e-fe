@@ -1,18 +1,21 @@
-import React, { useState, useRef } from 'react';
-import { Table, Tag, Tooltip, Space, Input, Dropdown, Menu, Button, Modal, message } from 'antd';
+import React, { useState, useRef, useEffect } from 'react';
+import { Table, Tag, Tooltip, Space, Input, Dropdown, Menu, Button, Modal, message, Select } from 'antd';
 import { ColumnsType } from 'antd/es/table';
-import { SearchOutlined, DownOutlined, ReloadOutlined, CopyOutlined, ApartmentOutlined } from '@ant-design/icons';
+import { SearchOutlined, DownOutlined, ReloadOutlined, CopyOutlined, ApartmentOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useAntdTable } from 'ahooks';
 import _ from 'lodash';
 import moment from 'moment';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { BusiGroupItem } from '@/store/commonInterface';
 import { getMonObjectList } from '@/services/targets';
 import { timeFormatter } from '@/pages/dashboard/Renderer/utils/valueFormatter';
 import clipboard from './clipboard';
 import OrganizeColumns from './OrganizeColumns';
 import { getDefaultColumnsConfigs, setDefaultColumnsConfigs } from './utils';
-import CollectsDrawer from './CollectsDrawer';
+// @ts-ignore
+import CollectsDrawer from 'plus:/pages/collects/CollectsDrawer';
+// @ts-ignore
+import TargetMetaDrawer from 'plus:/parcels/Targets/TargetMetaDrawer';
 
 export const pageSizeOptions = ['10', '20', '50', '100'];
 
@@ -38,7 +41,7 @@ interface ITargetProps {
 }
 
 interface IProps {
-  curBusiId: number;
+  gids?: string;
   selectedIdents: string[];
   setSelectedIdents: (selectedIdents: string[]) => void;
   selectedRowKeys: any[];
@@ -51,17 +54,19 @@ interface IProps {
 const GREEN_COLOR = '#3FC453';
 const YELLOW_COLOR = '#FF9919';
 const RED_COLOR = '#FF656B';
+const LOST_COLOR = '#CCCCCC';
+const downtimeOptions = [1, 2, 3, 5, 10, 30];
 
 export default function List(props: IProps) {
   const { t } = useTranslation('targets');
-  const { curBusiId, selectedIdents, setSelectedIdents, selectedRowKeys, setSelectedRowKeys, refreshFlag, setRefreshFlag, setOperateType } = props;
+  const { gids, selectedIdents, setSelectedIdents, selectedRowKeys, setSelectedRowKeys, refreshFlag, setRefreshFlag, setOperateType } = props;
   const isAddTagToQueryInput = useRef(false);
   const [searchVal, setSearchVal] = useState('');
   const [tableQueryContent, setTableQueryContent] = useState<string>('');
   const [columnsConfigs, setColumnsConfigs] = useState<{ name: string; visible: boolean }[]>(getDefaultColumnsConfigs());
   const [collectsDrawerVisible, setCollectsDrawerVisible] = useState(false);
   const [collectsDrawerIdent, setCollectsDrawerIdent] = useState('');
-
+  const [downtime, setDowntime] = useState();
   const columns: ColumnsType<any> = [
     {
       title: (
@@ -117,11 +122,11 @@ export default function List(props: IProps) {
         </Space>
       ),
       dataIndex: 'ident',
-      render: (text) => {
+      render: (text, record) => {
         return (
           <Space>
-            {text}
-            {import.meta.env['VITE_IS_COLLECT'] && (
+            {import.meta.env['VITE_IS_PRO'] ? <TargetMetaDrawer ident={text} /> : text}
+            {import.meta.env['VITE_IS_PRO'] && (
               <Tooltip title='查看关联采集配置'>
                 <ApartmentOutlined
                   onClick={() => {
@@ -184,40 +189,6 @@ export default function List(props: IProps) {
         },
       });
     }
-    if (item.name === 'target_up') {
-      columns.push({
-        title: t('target_up'),
-        width: 100,
-        dataIndex: 'target_up',
-        sorter: (a, b) => a.target_up - b.target_up,
-        render(text) {
-          if (text > 0) {
-            return (
-              <div
-                className='table-td-fullBG'
-                style={{
-                  backgroundColor: GREEN_COLOR,
-                }}
-              >
-                UP
-              </div>
-            );
-          } else if (text < 1) {
-            return (
-              <div
-                className='table-td-fullBG'
-                style={{
-                  backgroundColor: RED_COLOR,
-                }}
-              >
-                DOWN
-              </div>
-            );
-          }
-          return null;
-        },
-      });
-    }
     if (item.name === 'mem_util') {
       columns.push({
         title: t('mem_util'),
@@ -233,6 +204,10 @@ export default function List(props: IProps) {
           if (text > 85) {
             backgroundColor = RED_COLOR;
           }
+          if (reocrd.target_up === 0) {
+            backgroundColor = LOST_COLOR;
+          }
+
           return (
             <div
               className='table-td-fullBG'
@@ -260,6 +235,9 @@ export default function List(props: IProps) {
           }
           if (text > 85) {
             backgroundColor = RED_COLOR;
+          }
+          if (reocrd.target_up === 0) {
+            backgroundColor = LOST_COLOR;
           }
           return (
             <div
@@ -301,6 +279,9 @@ export default function List(props: IProps) {
           if (text < 1000) {
             backgroundColor = GREEN_COLOR;
           }
+          if (reocrd.target_up === 0) {
+            backgroundColor = LOST_COLOR;
+          }
           return (
             <div
               className='table-td-fullBG'
@@ -336,14 +317,36 @@ export default function List(props: IProps) {
         },
       });
     }
-    if (item.name === 'unixtime') {
+    if (item.name === 'update_at') {
       columns.push({
-        title: t('unixtime'),
+        title: (
+          <Space>
+            {t('update_at')}
+            <Tooltip title={<Trans ns='targets' i18nKey='update_at_tip' components={{ 1: <br /> }} />}>
+              <QuestionCircleOutlined />
+            </Tooltip>
+          </Space>
+        ),
         width: 100,
-        dataIndex: 'unixtime',
+        dataIndex: 'update_at',
         render: (val, reocrd) => {
-          if (reocrd.cpu_num === -1) return 'unknown';
-          return moment(val).format('YYYY-MM-DD HH:mm:ss');
+          let result = moment.unix(val).format('YYYY-MM-DD HH:mm:ss');
+          let backgroundColor = GREEN_COLOR;
+          if (reocrd.target_up === 0) {
+            backgroundColor = RED_COLOR;
+          } else if (reocrd.target_up === 1) {
+            backgroundColor = YELLOW_COLOR;
+          }
+          return (
+            <div
+              className='table-td-fullBG'
+              style={{
+                backgroundColor,
+              }}
+            >
+              {result}
+            </div>
+          );
         },
       });
     }
@@ -376,12 +379,13 @@ export default function List(props: IProps) {
     }
   });
 
-  const featchData = ({ current, pageSize }): Promise<any> => {
+  const featchData = ({ current, pageSize }: { current: number; pageSize: number }): Promise<any> => {
     const query = {
       query: tableQueryContent,
-      bgid: curBusiId,
+      gids: gids,
       limit: pageSize,
       p: current,
+      downtime,
     };
     return getMonObjectList(query).then((res) => {
       return {
@@ -395,10 +399,17 @@ export default function List(props: IProps) {
     return t('common:table.total', { total });
   };
 
-  const { tableProps } = useAntdTable(featchData, {
-    refreshDeps: [tableQueryContent, curBusiId, refreshFlag],
+  const { tableProps, run } = useAntdTable(featchData, {
+    manual: true,
     defaultPageSize: 30,
   });
+
+  useEffect(() => {
+    run({
+      current: 1,
+      pageSize: tableProps.pagination.pageSize,
+    });
+  }, [tableQueryContent, gids, refreshFlag, downtime]);
 
   return (
     <div>
@@ -421,6 +432,21 @@ export default function List(props: IProps) {
             }}
             onBlur={() => {
               setTableQueryContent(searchVal);
+            }}
+          />
+          <Select
+            allowClear
+            placeholder={t('filterDowntime')}
+            style={{ width: 200 }}
+            options={_.map(downtimeOptions, (item) => {
+              return {
+                label: t('filterDowntimeMin', { count: item }),
+                value: item * 60,
+              };
+            })}
+            value={downtime}
+            onChange={(val) => {
+              setDowntime(val);
             }}
           />
         </Space>

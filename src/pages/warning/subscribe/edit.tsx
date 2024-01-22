@@ -30,7 +30,7 @@ function useQuery() {
 }
 
 const EditSubscribe: React.FC = () => {
-  const { t } = useTranslation();
+  const { t } = useTranslation('alertSubscribes');
   const [curSubscribeData, setCurSubscribeData] = useState<subscribeItem>();
   const query = useQuery();
   const isClone = query.get('mode');
@@ -54,14 +54,15 @@ const EditSubscribe: React.FC = () => {
     setCurSubscribeData(
       {
         ...dat,
+        datasource_ids: dat.datasource_ids || undefined, // 兼容 null 值
         tags,
       } || {},
     );
   };
 
   return (
-    <PageLayout title={t('订阅规则')} showBack>
-      <div className='shield-add'>{curSubscribeData?.id && <OperateForm detail={curSubscribeData} type={!isClone ? 1 : 2} />}</div>
+    <PageLayout title={t('title')} showBack>
+      {curSubscribeData?.id && <OperateForm detail={curSubscribeData} type={!isClone ? 1 : 2} />}
     </PageLayout>
   );
 };

@@ -19,6 +19,7 @@
 }
 .renderer-timeseries-legend-container {
   position: relative;
+  height: calc(100% - 8px);
 }
 .renderer-timeseries-legend-list {
   overflow-y: auto;
@@ -28,31 +29,48 @@
   flex-wrap: wrap;
   column-gap: 20px;
   align-content: flex-start;
-  padding: 0 8px 8px 8px;
+  padding: 4px 8px;
   margin: 8px;
   cursor: pointer;
   user-select: none;
   background: #F9F9F9;
-  & > div {
+  .renderer-timeseries-legend-list-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    gap: 8px;
+  }
+  .renderer-timeseries-legend-list-item-name {
+    width: 100%;
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
   }
-  & > div.disabled {
+  .renderer-timeseries-legend-list-item-calcs {
+    display: flex;
+    gap: 4px;
+  }
+  .renderer-timeseries-legend-list-item-calcs,.renderer-timeseries-legend-list-item-link {
+    flex-shrink: 0;
+  }
+  .renderer-timeseries-legend-list-item.disabled {
     color: #24292e80
   }
 }
 .renderer-timeseries-legend-list-placement-right {
+  flex-direction: column;
+  flex-wrap: unset;
+  height: 100%;
   & > div {
-    width: 100%;
+    flex-shrink: 0;
   }
 }
 .renderer-timeseries-legend-color-symbol {
-  display: inline-block;
   height: 6px;
   width: 6px;
   border-radius: 6px;
-  margin-right: 5px;
+  flex-shrink: 0;
 }
 .renderer-timeseries-legend-toggle {
   position: absolute;

@@ -18,10 +18,23 @@ import request from '@/utils/request';
 import { RequestMethod } from '@/store/common';
 
 // 登录
-export const authLogin = function (username: string, password: string) {
+export const authLogin = function (username: string, password: string, captchaid?: string, verifyvalue?: string) {
   return request(`/api/n9e/auth/login`, {
     method: RequestMethod.Post,
-    data: { username, password },
+    data: { username, password, captchaid, verifyvalue },
+  });
+};
+
+export const getCaptcha = function () {
+  return request('/api/n9e/auth/captcha', {
+    method: RequestMethod.Post,
+  });
+};
+
+export const ifShowCaptcha = function () {
+  return request('/api/n9e/auth/ifshowcaptcha', {
+    method: RequestMethod.Get,
+    silence: true,
   });
 };
 
@@ -98,6 +111,12 @@ export const authCallbackOAuth = function (params) {
 
 export const getSsoConfig = function () {
   return request('/api/n9e/auth/sso-config', {
+    method: RequestMethod.Get,
+  });
+};
+
+export const getRSAConfig = function () {
+  return request('/api/n9e/auth/rsa-config', {
     method: RequestMethod.Get,
   });
 };

@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { message, Spin, Modal } from 'antd';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 import { useHistory, useParams } from 'react-router-dom';
 import PageLayout from '@/components/pageLayout';
 import BreadCrumb from '@/components/BreadCrumb';
+import { CommonStateContext } from '@/App';
 import { getDataSourceDetailById, submitRequest } from './services';
-import From from './Datasources/Form';
+import Form from './Datasources/Form';
 import './index.less';
 
 export default function FormCpt() {
   const { t } = useTranslation('datasourceManage');
+  const { isPlus } = useContext(CommonStateContext);
   const history = useHistory();
   const params = useParams<{ action: string; type: string; id: string }>();
   const { action } = params;
@@ -21,17 +23,31 @@ export default function FormCpt() {
   const onFinish = async (values: any) => {
     setSubmitLoading(true);
     // 转换 http.headers 格式
-    _.set(
-      values,
-      'http.headers',
-      _.transform(
-        values?.http?.headers,
-        (result, item) => {
-          result[item.key] = item.value;
-        },
-        {},
-      ),
-    );
+    if (type === 'influxdb') {
+      _.set(
+        values,
+        ['settings', 'influxdb.headers'],
+        _.transform(
+          values?.settings?.['influxdb.headers'],
+          (result, item) => {
+            result[item.key] = item.value;
+          },
+          {},
+        ),
+      );
+    } else {
+      _.set(
+        values,
+        'http.headers',
+        _.transform(
+          values?.http?.headers,
+          (result, item) => {
+            result[item.key] = item.value;
+          },
+          {},
+        ),
+      );
+    }
     return submitRequest({
       ...values,
       plugin_type: type,
@@ -43,7 +59,7 @@ export default function FormCpt() {
         message.success(action === 'add' ? t('common:success.add') : t('common:success.modify'));
         setTimeout(() => {
           history.push({
-            hash: '/help/source',
+            pathname: '/help/source',
           });
         }, 2000);
       })
@@ -85,11 +101,16 @@ export default function FormCpt() {
         {action === 'edit' && data === undefined ? (
           <Spin spinning={true} />
         ) : (
-          <From
+          <Form
             data={data}
             onFinish={(values, clusterInstance) => {
-              if (type === 'prometheus' && !values.cluster_name) {
-                console.log('clustrInstance', clusterInstance);
+              if (
+                (type === 'prometheus' && !values.cluster_name) ||
+                (type === 'elasticsearch' && !values.cluster_name && isPlus) ||
+                (type === 'influxdb' && !values.cluster_name) ||
+                (type === 'ck' && !values.cluster_name) ||
+                (type === 'aliyun-sls' && !values.cluster_name)
+              ) {
                 Modal.confirm({
                   title: t('form.cluster_confirm'),
                   okText: t('form.cluster_confirm_ok'),

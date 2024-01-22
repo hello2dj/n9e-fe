@@ -1,12 +1,18 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useRef } from 'react';
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
-import { message, Table, Modal, Button, Space, Popconfirm } from 'antd';
+import type { InputRef } from 'antd';
+import { message, Table, Modal, Button, Space, Popconfirm, Input, Tooltip } from 'antd';
+import { ColumnProps } from 'antd/es/table';
+import { SearchOutlined, CheckCircleFilled } from '@ant-design/icons';
 import { CommonStateContext } from '@/App';
 import usePagination from '@/components/usePagination';
 import Rename from '../Rename';
 import { deleteDataSourceById, getDataSourceList, updateDataSourceStatus } from '../../services';
-
+// @ts-ignore
+import { autoDatasourcetype, AuthList, AutoDatasourcetypeValue } from 'plus:/components/DataSourceAuth/auth';
+// @ts-ignore
+import useIsPlus from 'plus:/components/useIsPlus';
 export interface IDefaultES {
   default_id: number;
   system_id: number;
@@ -27,12 +33,16 @@ export interface IKeyValue {
 
 const TableSource = (props: IPropsType) => {
   const { t } = useTranslation('datasourceManage');
+  const isPlus = useIsPlus();
   const { nameClick, pluginList } = props;
+  const [auth, setAuth] = useState<{ visible: boolean; name: string; type: AutoDatasourcetypeValue; dataSourceId: number }>();
   const { setDatasourceList } = useContext(CommonStateContext);
   const [tableData, setTableData] = useState<any>([]);
   const [refresh, setRefresh] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const pagination = usePagination({ PAGESIZE_KEY: 'datasource' });
+  const [searchVal, setSearchVal] = useState<string>('');
+  const searchInput = useRef<InputRef>(null);
 
   useEffect(() => {
     init();
@@ -50,10 +60,28 @@ const TableSource = (props: IPropsType) => {
       });
   };
 
-  const defaultColumns = [
+  const getColumnSearchProps = (dataIndex) => ({
+    filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
+      <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
+        <Input.Search
+          ref={searchInput}
+          placeholder={`Search ${dataIndex}`}
+          value={selectedKeys[0]}
+          onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+          onSearch={(val) => {
+            setSearchVal(val);
+          }}
+        />
+      </div>
+    ),
+    filterIcon: (filtered: boolean) => <SearchOutlined style={{ color: filtered ? '#1890ff' : undefined }} />,
+  });
+
+  const defaultColumns: ColumnProps<any>[] = [
     {
       title: t('name'),
       dataIndex: 'name',
+      ...getColumnSearchProps('name'),
       render: (text, record) => {
         return (
           <Rename
@@ -69,6 +97,17 @@ const TableSource = (props: IPropsType) => {
               }}
             >
               {text}
+              {record?.is_default && (
+                <Tooltip placement='top' title={t('该数据源类型下的默认集群')}>
+                  <CheckCircleFilled
+                    style={{
+                      visibility: 'visible',
+                      marginLeft: 5,
+                      marginRight: 5,
+                    }}
+                  />
+                </Tooltip>
+              )}
             </a>
           </Rename>
         );
@@ -78,6 +117,16 @@ const TableSource = (props: IPropsType) => {
       title: t('type'),
       width: 300,
       dataIndex: 'plugin_type',
+      filters: pluginList?.map((el) => {
+        let temp = {
+          text: <span style={{ marginLeft: 8 }}>{el.name}</span>,
+          value: el.type,
+        };
+        return temp;
+      }),
+      onFilter: (value: string, record) => {
+        return record.plugin_type === value;
+      },
     },
     {
       title: t('common:table.operations'),
@@ -126,8 +175,58 @@ const TableSource = (props: IPropsType) => {
       },
     },
   ];
+  if (isPlus) {
+    defaultColumns.splice(2, 0, {
+      title: t('auth.name'),
+      dataIndex: 'auth',
+      width: 150,
+      render: (text, record) => {
+        return autoDatasourcetype.includes(record.plugin_type) ? (
+          <Button
+            type='link'
+            size='small'
+            onClick={() => {
+              setAuth({ visible: true, name: record.name, type: record.plugin_type, dataSourceId: record.id });
+            }}
+          >
+            {t('common:btn.edit')}
+          </Button>
+        ) : (
+          t('auth.not-support')
+        );
+      },
+    });
+  }
 
-  return <Table size='small' className='datasource-list' rowKey='id' dataSource={tableData} columns={defaultColumns} loading={loading} pagination={pagination} />;
+  return (
+    <>
+      <Table
+        size='small'
+        className='datasource-list'
+        rowKey='id'
+        dataSource={_.filter(tableData, (item) => {
+          if (searchVal) {
+            return _.includes(item.name, searchVal);
+          }
+          return item;
+        })}
+        columns={defaultColumns}
+        loading={loading}
+        pagination={pagination}
+      />
+      {auth && (
+        <AuthList
+          visible={auth.visible}
+          onClose={() => {
+            setAuth(undefined);
+          }}
+          name={auth.name}
+          type={auth.type}
+          dataSourceId={auth.dataSourceId}
+        />
+      )}
+    </>
+  );
 };
 
 export default TableSource;

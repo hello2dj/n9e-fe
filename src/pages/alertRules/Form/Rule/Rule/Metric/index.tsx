@@ -16,125 +16,78 @@
  */
 
 import React, { useContext } from 'react';
-import { Form, Row, Col, Select, Card, Space } from 'antd';
-import { PlusCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { Form, Row, Col } from 'antd';
 import { useTranslation } from 'react-i18next';
 import _ from 'lodash';
 import { CommonStateContext } from '@/App';
-import { getAuthorizedDatasourceCates } from '@/components/AdvancedWrap';
-import { PromQLInputWithBuilder } from '@/components/PromQLInput';
 import DatasourceValueSelect from '@/pages/alertRules/Form/components/DatasourceValueSelect';
-import Severity from '@/pages/alertRules/Form/components/Severity';
-import Inhibit from '@/pages/alertRules/Form/components/Inhibit';
 import IntervalAndDuration from '@/pages/alertRules/Form/components/IntervalAndDuration';
-import { FormStateContext } from '@/pages/alertRules/Form';
-import './style.less';
+import { DatasourceCateSelect } from '@/components/DatasourceSelect';
+import { DatasourceCateEnum } from '@/utils/constant';
+import { getDefaultValuesByCate } from '../../../utils';
+import Prometheus from './Prometheus';
+import { AlertRule as TDengine } from '@/plugins/TDengine';
+// @ts-ignore
+import PlusAlertRule from 'plus:/parcels/AlertRule';
 
-const DATASOURCE_ALL = 0;
-
-function getFirstDatasourceId(datasourceIds = [], datasourceList: { id: number }[] = []) {
-  return _.isEqual(datasourceIds, [DATASOURCE_ALL]) && datasourceList.length > 0 ? datasourceList[0]?.id : datasourceIds[0];
-}
-
-export default function index() {
+export default function index({ form }) {
   const { t } = useTranslation('alertRules');
   const { groupedDatasourceList } = useContext(CommonStateContext);
-  const { disabled } = useContext(FormStateContext);
-  const datasourceCates = _.filter(getAuthorizedDatasourceCates(), (item) => item.type === 'metric');
 
   return (
     <div>
       <Row gutter={16}>
         <Col span={12}>
           <Form.Item label={t('common:datasource.type')} name='cate'>
-            <Select>
-              {_.map(datasourceCates, (item) => {
-                return (
-                  <Select.Option value={item.value} key={item.value}>
-                    {item.label}
-                  </Select.Option>
-                );
-              })}
-            </Select>
+            <DatasourceCateSelect
+              scene='alert'
+              filterCates={(cates) => {
+                return _.filter(cates, (item) => _.includes(item.type, 'metric') && !!item.alertRule);
+              }}
+              onChange={(val) => {
+                form.setFieldsValue(getDefaultValuesByCate('metric', val));
+              }}
+            />
           </Form.Item>
         </Col>
         <Col span={12}>
           <Form.Item shouldUpdate={(prevValues, curValues) => prevValues.cate !== curValues.cate} noStyle>
             {({ getFieldValue, setFieldsValue }) => {
               const cate = getFieldValue('cate');
-              return <DatasourceValueSelect mode='multiple' setFieldsValue={setFieldsValue} cate={cate} datasourceList={groupedDatasourceList[cate] || []} />;
+              return (
+                <DatasourceValueSelect
+                  setFieldsValue={setFieldsValue}
+                  cate={cate}
+                  datasourceList={groupedDatasourceList[cate] || []}
+                  mode={cate === 'prometheus' ? 'multiple' : undefined}
+                />
+              );
             }}
           </Form.Item>
         </Col>
       </Row>
       <div style={{ marginBottom: 10 }}>
-        <Form.Item noStyle shouldUpdate={(prevValues, curValues) => !_.isEqual(prevValues.datasource_ids, curValues.datasource_ids)}>
-          {({ getFieldValue }) => {
-            const cate = getFieldValue('cate');
-            const curDatasourceList = groupedDatasourceList[cate] || [];
-            const datasourceIds = getFieldValue('datasource_ids') || [];
-            const datasourceId = getFirstDatasourceId(datasourceIds, curDatasourceList);
-
-            return (
-              <Form.List name={['rule_config', 'queries']}>
-                {(fields, { add, remove }) => (
-                  <Card
-                    title={
-                      <Space>
-                        <span>{t('metric.query.title')}</span>
-                        <PlusCircleOutlined
-                          onClick={() =>
-                            add({
-                              prom_ql: '',
-                              severity: 3,
-                            })
-                          }
-                        />
-                        <Inhibit triggersKey='queries' />
-                      </Space>
-                    }
-                    size='small'
-                  >
-                    <div className='alert-rule-triggers-container'>
-                      {fields.map((field) => (
-                        <div key={field.key} className='alert-rule-trigger-container'>
-                          <Row>
-                            <Col flex='80px'>
-                              <div style={{ marginTop: 6 }}>PromQL</div>
-                            </Col>
-                            <Col flex='auto'>
-                              <Form.Item
-                                {...field}
-                                name={[field.name, 'prom_ql']}
-                                validateTrigger={['onBlur']}
-                                trigger='onChange'
-                                rules={[{ required: true, message: t('请输入PromQL') }]}
-                              >
-                                <PromQLInputWithBuilder readonly={disabled} datasourceValue={datasourceId} />
-                              </Form.Item>
-                            </Col>
-                          </Row>
-                          <div>
-                            <Severity field={field} />
-                          </div>
-                          <MinusCircleOutlined className='alert-rule-trigger-remove' onClick={() => remove(field.name)} />
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                )}
-              </Form.List>
-            );
+        <Form.Item noStyle shouldUpdate={(prevValues, curValues) => !_.isEqual(prevValues.cate, curValues.cate) || !_.isEqual(prevValues.datasource_ids, curValues.datasource_ids)}>
+          {(form) => {
+            const cate = form.getFieldValue('cate');
+            const datasourceValue = form.getFieldValue('datasource_ids');
+            if (cate === DatasourceCateEnum.prometheus) {
+              return <Prometheus datasourceCate={cate} datasourceValue={datasourceValue} />;
+            }
+            if (cate === DatasourceCateEnum.tdengine) {
+              return <TDengine form={form as any} datasourceValue={datasourceValue} />;
+            }
+            return <PlusAlertRule cate={cate} form={form} datasourceValue={datasourceValue} />;
           }}
         </Form.Item>
       </div>
 
       <IntervalAndDuration
         intervalTip={(num) => {
-          return t('metric.prom_eval_interval_tip', { num });
+          return t('datasource:es.alert.prom_eval_interval_tip', { num });
         }}
         durationTip={(num) => {
-          return t('metric.prom_for_duration_tip', { num });
+          return t('datasource:es.alert.prom_for_duration_tip', { num });
         }}
       />
     </div>

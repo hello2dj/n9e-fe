@@ -14,19 +14,26 @@
  * limitations under the License.
  *
  */
-import React from 'react';
-import { Form, Select, Row, Col, Switch, Radio } from 'antd';
-import { CaretDownOutlined } from '@ant-design/icons';
+import React, { useEffect } from 'react';
+import { Form, Select, Row, Col, Switch, Radio, Button, Mentions, Space, Tooltip, Input } from 'antd';
+import { DeleteOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import _ from 'lodash';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { Panel } from '../../Components/Collapse';
 import { calcsOptions } from '../../config';
 import { useGlobalState } from '../../../globalState';
+import Info from '@/pages/account/info';
 
-export default function GraphStyles({ chartForm }) {
+export default function GraphStyles({ chartForm, variableConfigWithOptions }) {
   const { t, i18n } = useTranslation('dashboard');
   const namePrefix = ['custom'];
-  const [tableFields] = useGlobalState('tableFields');
+  const [tableFields, setTableFields] = useGlobalState('tableFields');
+
+  useEffect(() => {
+    return () => {
+      setTableFields([]);
+    };
+  }, []);
 
   return (
     <Panel header={t('panel.custom.title')}>
@@ -46,12 +53,12 @@ export default function GraphStyles({ chartForm }) {
             </Form.Item>
           </Col>
         </Row>
-        <Form.Item label={t('panel.custom.calc')} name={[...namePrefix, 'calc']}>
-          <Select suffixIcon={<CaretDownOutlined />}>
+        <Form.Item label={t('panel.custom.calc')} name={[...namePrefix, 'calc']} tooltip={t('panel.custom.calc_tip')}>
+          <Select>
             {_.map(calcsOptions, (item, key) => {
               return (
                 <Select.Option key={key} value={key}>
-                  {i18n.language === 'en_US' ? key : item.name}
+                  {t(`calcs.${key}`)}
                 </Select.Option>
               );
             })}
@@ -61,12 +68,11 @@ export default function GraphStyles({ chartForm }) {
           <Col span={12}>
             <Form.Item label={t('panel.custom.table.displayMode')} name={[...namePrefix, 'displayMode']}>
               <Select
-                suffixIcon={<CaretDownOutlined />}
                 onChange={(val) => {
                   if (val === 'labelsOfSeriesToRows') {
                     chartForm.setFieldsValue({ custom: { columns: [] } });
                   } else if (val === 'labelValuesToRows') {
-                    chartForm.setFieldsValue({ custom: { aggrDimension: '' } });
+                    chartForm.setFieldsValue({ custom: { aggrDimension: [] } });
                   }
                 }}
               >
@@ -82,7 +88,7 @@ export default function GraphStyles({ chartForm }) {
                 return (
                   <Col span={12}>
                     <Form.Item label={t('panel.custom.table.columns')} name={[...namePrefix, 'columns']}>
-                      <Select mode='multiple' placeholder='' suffixIcon={<CaretDownOutlined />}>
+                      <Select mode='multiple' placeholder=''>
                         {_.map(_.concat(tableFields, 'value'), (item) => {
                           return (
                             <Select.Option key={item} value={item}>
@@ -99,7 +105,7 @@ export default function GraphStyles({ chartForm }) {
                 return (
                   <Col span={12}>
                     <Form.Item label={t('panel.custom.table.aggrDimension')} name={[...namePrefix, 'aggrDimension']}>
-                      <Select suffixIcon={<CaretDownOutlined />}>
+                      <Select mode='multiple'>
                         {_.map(tableFields, (item) => {
                           return (
                             <Select.Option key={item} value={item}>
@@ -135,7 +141,6 @@ export default function GraphStyles({ chartForm }) {
                 return (
                   <Form.Item label={t('panel.custom.table.sortColumn')} name={[...namePrefix, 'sortColumn']}>
                     <Select
-                      suffixIcon={<CaretDownOutlined />}
                       allowClear
                       onChange={() => {
                         if (!chartForm.getFieldValue([...namePrefix, 'sortOrder'])) {
@@ -162,13 +167,102 @@ export default function GraphStyles({ chartForm }) {
           </Col>
           <Col span={12}>
             <Form.Item label={t('panel.custom.table.sortOrder')} name={[...namePrefix, 'sortOrder']}>
-              <Select suffixIcon={<CaretDownOutlined />} allowClear>
+              <Select allowClear>
                 <Select.Option value='ascend'>Asc</Select.Option>
                 <Select.Option value='descend'>Desc</Select.Option>
               </Select>
             </Form.Item>
           </Col>
         </Row>
+        <Form.Item label={t('panel.custom.table.link.mode')} name={[...namePrefix, 'linkMode']} initialValue='appendLinkColumn'>
+          <Radio.Group buttonStyle='solid'>
+            <Radio.Button value='appendLinkColumn'>{t('panel.custom.table.link.appendLinkColumn')}</Radio.Button>
+            <Radio.Button value='cellLink'>{t('panel.custom.table.link.cellLink')}</Radio.Button>
+          </Radio.Group>
+        </Form.Item>
+        <Form.Item
+          label={
+            <Space>
+              {t('panel.base.link.label')}
+              <Tooltip title={<Trans ns='dashboard' i18nKey='dashboard:link.url_tip' components={{ 1: <br /> }} />}>
+                <InfoCircleOutlined />
+              </Tooltip>
+            </Space>
+          }
+          style={{ marginBottom: 0 }}
+        >
+          <Form.List name={[...namePrefix, 'links']}>
+            {(fields, { add, remove }) => (
+              <>
+                <Button
+                  style={{ width: '100%', marginBottom: 10 }}
+                  onClick={() => {
+                    add({});
+                  }}
+                >
+                  {t('panel.base.link.btn')}
+                </Button>
+                {fields.map(({ key, name, ...restField }) => {
+                  return (
+                    <Space
+                      key={key}
+                      style={{
+                        alignItems: 'flex-start',
+                      }}
+                    >
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'title']}
+                        rules={[
+                          {
+                            required: true,
+                            message: t('panel.base.link.name_msg'),
+                          },
+                        ]}
+                      >
+                        <Input placeholder={t('link.name')} />
+                      </Form.Item>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'url']}
+                        rules={[
+                          {
+                            required: true,
+                            message: t('panel.base.link.url_msg'),
+                          },
+                        ]}
+                      >
+                        <Input style={{ width: 284 }} placeholder={t('link.url')} />
+                      </Form.Item>
+                      <Tooltip title={t('panel.base.link.isNewBlank')}>
+                        <Form.Item {...restField} name={[name, 'targetBlank']} valuePropName='checked'>
+                          <Switch />
+                        </Form.Item>
+                      </Tooltip>
+                      <Button
+                        icon={<DeleteOutlined />}
+                        onClick={() => {
+                          remove(name);
+                        }}
+                      />
+                    </Space>
+                  );
+                })}
+              </>
+            )}
+          </Form.List>
+        </Form.Item>
+        <Form.Item label={t('panel.base.description')} name='description'>
+          <Mentions prefix='$' split='' rows={3}>
+            {_.map(variableConfigWithOptions, (item) => {
+              return (
+                <Mentions.Option key={item.name} value={item.name}>
+                  {item.name}
+                </Mentions.Option>
+              );
+            })}
+          </Mentions>
+        </Form.Item>
       </>
     </Panel>
   );

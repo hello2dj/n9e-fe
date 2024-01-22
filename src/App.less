@@ -2,7 +2,6 @@
 .App {
   height: 100%;
 }
-
 html {
   --slider-rail: linear-gradient(to right, #45d678 0, #45d678 100%);
 }
@@ -31,31 +30,31 @@ html {
   }
 
   // pagination不要太亮，不要关注这里 --from 设计师
-  .ant-pagination {
+  // .ant-pagination {
 
-    &-prev,
-    &-next {
-      button {
-        color: #8c8c8c;
-      }
-    }
+  //   &-prev,
+  //   &-next {
+  //     button {
+  //       color: #8c8c8c;
+  //     }
+  //   }
 
-    &-item {
-      &-active {
-        border: 0px;
-      }
+  //   &-item {
+  //     &-active {
+  //       border: 0px;
+  //     }
 
-      a {
-        color: #8c8c8c;
-      }
-    }
+  //     a {
+  //       color: #8c8c8c;
+  //     }
+  //   }
 
-    color: #8c8c8c;
+  //   color: #8c8c8c;
 
-    .ant-select {
-      color: #8c8c8c;
-    }
-  }
+  //   .ant-select {
+  //     color: #8c8c8c;
+  //   }
+  // }
 
   .dot-block {
     padding: 16px;
@@ -70,13 +69,11 @@ html {
     padding: 10px 10px 0px;
     display: flex;
     justify-content: space-between;
-
     &-buttons {
       display: flex;
       justify-content: center;
       align-items: center;
     }
-
     .table-more-options {
       .ant-btn {
         margin-left: 8px;
@@ -98,33 +95,26 @@ html {
       line-height: 1;
     }
   }
-
   // table
   .ant-table {
     margin-top: 10px;
-    border-bottom: 1px solid #dbdee3;
-
     .ant-table-tbody {
       td {
         height: 40px;
-        line-height: 28px;
-        border-top: 1px solid #dbdee3;
-        border-bottom: none;
-        padding-top: 5px;
-        padding-bottom: 5px;
-        color: #666;
       }
-
       .ant-table-expanded-row {
         .ant-table-wrapper {
           overflow: hidden;
         }
-
         .ant-table {
           margin: 0 0 10px;
         }
       }
     }
+  }
+
+  .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
+    z-index: unset; // 修复 hover codemirror 后莫名其妙的会透出问题
   }
 }
 
@@ -137,7 +127,6 @@ html {
   width: 20px;
   height: 20px;
   margin-right: 15px;
-
   &:hover {
     color: @primary-color;
   }
@@ -147,25 +136,20 @@ html {
   color: @primary-color;
   cursor: pointer;
 }
-
 .table-operator-area {
   display: flex;
   flex-direction: row;
-
   div {
     cursor: pointer;
     margin-right: 8px;
   }
-
   &-normal {
     color: @primary-color;
   }
-
   &-warning {
     color: @colorRed2;
   }
 }
-
 // input
 input::placeholder {
   // font-size: 12px;
@@ -176,12 +160,10 @@ input::placeholder {
 .ant-select-selection-placeholder {
   font-size: 12px;
 }
-
 .ant-select {
   .overflow-586 {
     min-width: 586px !important;
   }
-
   .overflow-230 {
     min-width: 230px !important;
   }
@@ -213,7 +195,6 @@ input::placeholder {
     content: ' ';
     display: inline-block;
   }
-
   // height: 54px;
   margin: 24px 0 16px;
   font-size: 14px;
@@ -232,7 +213,6 @@ input::placeholder {
     content: ' ';
     display: inline-block;
   }
-
   display: flex;
   align-items: center;
 }
@@ -248,27 +228,21 @@ input::placeholder {
 
 .title-color {
   color: @text-color;
-
-  &>* {
+  & > * {
     color: @text-color;
   }
 }
-
 .base-text-color {
   color: @text-color;
 }
-
 .second-color {
   color: @secondColor;
-
-  &>* {
+  & > * {
     color: @secondColor;
   }
 }
-
 .danger-color {
   color: #fd736c;
-
   &:hover {
     color: #fd736c;
   }
@@ -278,7 +252,6 @@ input::placeholder {
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: hidden;
-
   &.break {
     word-break: break-all;
     white-space: normal;
@@ -307,7 +280,6 @@ input::placeholder {
   border: 1px solid #ddd !important;
   box-shadow: 0px 1px 8px 0px rgba(0, 0, 0, 0.1) !important;
 }
-
 .ant-tabs-tab {
   color: @secondColor;
 }
@@ -323,40 +295,27 @@ input::placeholder {
   border: 1px dashed #e5e5e5;
 }
 
-.ant-tabs-top {
-  &>.ant-tabs-nav::before {
-    border-bottom: 0px;
-  }
-}
-
 .mt16 {
   margin-top: 16px;
 }
-
 .mb16 {
   margin-bottom: 16px;
 }
-
 .mr16 {
   margin-right: 16px;
 }
-
 .ml16 {
   margin-left: 16px;
 }
-
 .mb8 {
   margin-bottom: 8px;
 }
-
 .mt8 {
   margin-top: 8px;
 }
-
 .mr8 {
   margin-right: 8px;
 }
-
 .ml8 {
   margin-left: 8px;
 }
@@ -365,15 +324,12 @@ input::placeholder {
   &.anticon {
     color: #ee5a52;
   }
-
   color: #ee5a52;
 }
-
 .green-text {
   &.anticon {
     color: #83d35c;
   }
-
   color: #83d35c;
 }
 
@@ -383,36 +339,22 @@ input::placeholder {
     animation: shake-icon ease 1s;
   }
 }
-
 @keyframes shake-icon {
   33% {
     transform: scale(1.4) rotateZ(45deg);
   }
-
   66% {
     transform: scale(1.2) rotateZ(-45deg);
   }
-
   100% {
     transform: scale(1) rotateZ(0deg);
   }
 }
 
 .edit_area_background {
-  // background-color: #f6f6f6;
   border: 1px solid #f6f6f6;
   border-radius: 4px;
   padding: 8px;
-}
-
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.16);
 }
 
 .license-off {
